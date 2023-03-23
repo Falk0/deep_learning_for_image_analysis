@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import load_auto as la
 import matplotlib.pyplot as plt
 
 class NeuralNetwork:
@@ -66,23 +68,25 @@ class NeuralNetwork:
 X = np.transpose(np.array([[1, 2, 3]]))
 Y1 = 3.3 * X + 10
 
-nn = NeuralNetwork(1, 0.1, 1)
-nn.initiliaze_parameters()
-nn.train_linear_model(X, Y1, 1000)
 
-history1 = nn.history()
+X_train_1, X_train_7, Y_train = la.load_auto()
 
-nn = NeuralNetwork(1, 0.01, 1)
-nn.initiliaze_parameters()
-nn.train_linear_model(X, Y1, 1000)
-
-history2 = nn.history()
-
+plt.figure(1)
+for x in [1e-1, 0.001]:
+    nn = NeuralNetwork(1, x, 1)
+    nn.initiliaze_parameters()
+    nn.train_linear_model(X_train_1, Y_train, 1000) 
+    plt.plot(nn.history())
+nn.print_parameters()
 
 
-plt.plot(history1)
-plt.plot(history2)
+for x in [1e-1, 0.001]:
+    nn = NeuralNetwork(7, x, 1)
+    nn.initiliaze_parameters()
+    nn.train_linear_model(X_train_7, Y_train, 1000)
+    plt.plot(nn.history())
+nn.print_parameters()
 plt.show()
 
 
-print(nn.predict([2]))
+
