@@ -71,22 +71,30 @@ Y1 = 3.3 * X + 10
 
 X_train_1, X_train_7, Y_train = la.load_auto()
 
-plt.figure(1)
-for x in [1e-1, 0.001]:
-    nn = NeuralNetwork(1, x, 1)
-    nn.initiliaze_parameters()
-    nn.train_linear_model(X_train_1, Y_train, 1000) 
-    plt.plot(nn.history())
-nn.print_parameters()
-
-
-for x in [1e-1, 0.001]:
+'''
+for x in [1e-1, 1e-2, 1e-3, 1e-4]:
     nn = NeuralNetwork(7, x, 1)
     nn.initiliaze_parameters()
     nn.train_linear_model(X_train_7, Y_train, 1000)
-    plt.plot(nn.history())
+    plt.plot(nn.history(), color='blue')
 nn.print_parameters()
+'''
+
+
+for x in [1e-1, 1e-2, 1e-3, 1e-1]:
+    nn = NeuralNetwork(1, x, 1)
+    nn.initiliaze_parameters()
+    nn.train_linear_model(X_train_1, Y_train, 5000) 
+    #plt.plot(nn.history(), color= 'red')
+nn.print_parameters()
+
+#plt.show()
+
+X_test = np.linspace(0,1,10)
+arr_of_arrays = np.array([np.array([x]) for x in X_test])
+Y_test = nn.predict(arr_of_arrays)
+
+plt.scatter(X_train_1,Y_train)
+plt.plot(X_test, Y_test)
 plt.show()
-
-
 
