@@ -12,6 +12,7 @@ class NeuralNetwork:
         self.features = features
         self.args = args
         self.learningRate = learningRate
+        self.loss= None
         self.weights1 = None
         self.bias1 = None
         self.dL = None
@@ -54,27 +55,26 @@ class NeuralNetwork:
         return (Y_pred - Y)
 
     def cross_entropy(self, Y_pred, Y):
-        cost = -np.sum(Y.dot(np.log(Y_pred.T)))
+        cost = -np.sum(Y * np.log(Y_pred + 1e-10))
         #print(cost)
         #print('cross entropy')
         #print(cost.shape)
         return cost
 
-   # [1, 784] x [784, 10] + [1,10] = [1, 10]  
+
     #Calculate the gradients 
     def model_backward(self, X, Y):
-        samples, features = 53, 748 # X.shape
+        samples, features  = X.shape
         Z1, A1 = self.model_forward(X) 
-        L = 1/samples * self.cross_entropy(A1,Y)
-    
-        self.dZ1 = 1/samples * (-Y + A1)          # 10 m
-        #print('model backward')
-        #print(self.dZ1.shape)
+        cost = self.cross_entropy(A1, Y)
+
+        self.dZ1 =  (-Y + A1)          # 10 m
+
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
-        #print(self.dW1.shape)
+
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
-        #print(self.dB1.shape)
-        self.training_history.append(np.mean(np.abs(self.dZ1)))
+
+        self.training_history.append(np.mean(np.abs(cost)))
 
     #Update the weight and bias with the pre-calciulated gradients
     def update_parameters(self):
@@ -102,7 +102,7 @@ class NeuralNetwork:
        return self.training_history
     
     def weights_as_image(self):
-        fig, ax = plt.subplots(2,5, dpi=300)   
+        fig, ax = plt.subplots(2,5, dpi=200)   
         for x in range(5):
             im1 = self.weights1[x,:].reshape((28,28))
             im2 = self.weights1[5+x,:].reshape((28,28))
@@ -143,7 +143,6 @@ shuffled__testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 nn.train_linear_model(shuffled_data.T, shuffled_labels.T, 1000)
-nn.print_parameters()
 nn.weights_as_image()
 plt.plot(nn.history())
 plt.show()
