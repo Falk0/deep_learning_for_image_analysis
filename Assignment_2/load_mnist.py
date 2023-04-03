@@ -11,7 +11,7 @@ def load_mnist():
     test_labels = []    
     
     for label in range(NUM_LABELS):
-        for image_path in glob.glob("MNIST/Test/" + str(label) + "/*.png"):
+        for image_path in glob.glob("/Users/falk/Documents/python_projects/Deep_learning_for_image_analysis/Assignment_2/MNIST/Test/" + str(label) + "/*.png"):
             image = imageio.imread(image_path)
             test_images.append(image)
             letter = [0 for _ in range(0,NUM_LABELS)]    
@@ -23,7 +23,7 @@ def load_mnist():
     train_labels = []    
     
     for label in range(NUM_LABELS):
-        for image_path in glob.glob("MNIST/Train/" + str(label) + "/*.png"):
+        for image_path in glob.glob("/Users/falk/Documents/python_projects/Deep_learning_for_image_analysis/Assignment_2/MNIST/Train/" + str(label) + "/*.png"):
             image = imageio.imread(image_path)
             train_images.append(image)
             letter = [0 for _ in range(0,NUM_LABELS)]    
@@ -34,5 +34,4 @@ def load_mnist():
     Y_train= np.array(train_labels)
     X_test= np.array(test_images).reshape(-1,784)/255.0
     Y_test= np.array(test_labels)
-    
     return X_train, Y_train, X_test, Y_test
