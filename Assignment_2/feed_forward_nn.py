@@ -21,6 +21,7 @@ class NeuralNetwork:
         self.dW1 = None
         self.dB1 = None
         self.training_history = []
+        self.training_historyTest = []
        
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
@@ -45,9 +46,7 @@ class NeuralNetwork:
     def model_forward(self, X): 
         Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
         A1 = self.softmax(Z1)                   # 10, m
-        #print('model forward')
-        #print(Z1.shape)
-        #print(A1.shape)
+
         return Z1, A1
 
 
@@ -56,17 +55,18 @@ class NeuralNetwork:
 
     def cross_entropy(self, Y_pred, Y):
         cost = -np.sum(Y * np.log(Y_pred + 1e-10))
-        #print(cost)
-        #print('cross entropy')
-        #print(cost.shape)
+
         return cost
 
 
     #Calculate the gradients 
-    def model_backward(self, X, Y):
-        samples, features  = X.shape
+    def model_backward(self, X, Y, X_test, Y_test):
+        features, samples  = X.shape
+        features_test, samples_test  = X.shape
         Z1, A1 = self.model_forward(X) 
+        Z1test, A1test = self.model_forward(X_test)
         cost = self.cross_entropy(A1, Y)
+        costTest = self.cross_entropy(A1test, Y_test)
 
         self.dZ1 =  (-Y + A1)          # 10 m
 
@@ -74,7 +74,8 @@ class NeuralNetwork:
 
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
 
-        self.training_history.append(np.mean(np.abs(cost)))
+        self.training_history.append(np.mean(np.abs(cost))/samples)
+        self.training_historyTest.append(np.mean(np.abs(costTest))/samples_test)
 
     #Update the weight and bias with the pre-calciulated gradients
     def update_parameters(self):
@@ -88,9 +89,9 @@ class NeuralNetwork:
     
 
     #Train the network
-    def train_linear_model(self, X, Y, iterations):
+    def train_linear_model(self, X, Y, X_test, Y_test, iterations):
         for i in range(iterations):
-            self.model_backward(X, Y)
+            self.model_backward(X, Y, X_test, Y_test)
             self.update_parameters()
 
 
@@ -99,7 +100,7 @@ class NeuralNetwork:
         print(self.bias1)
     
     def history(self):
-       return self.training_history
+       return self.training_history, self.training_historyTest
     
     def weights_as_image(self):
         fig, ax = plt.subplots(2,5, dpi=200)   
@@ -117,13 +118,9 @@ class NeuralNetwork:
 X_train, Y_train, X_test, Y_test = lm.load_mnist()
 
 
-assert X_train.shape[0] == Y_train.shape[0], "Mismatch in the number of samples between data and labels."
-
 def shuffle_data_and_labels(data, labels):
     # Get the number of samples
     n_samples = data.shape[0]
-
-    # Create an array of indices representing the samples
     indices = np.arange(n_samples)
 
     # Shuffle the indices
@@ -135,26 +132,35 @@ def shuffle_data_and_labels(data, labels):
 
     return shuffled_data, shuffled_labels
 
-# Shuffle the data and labels
-shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
-shuffled__testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 
+def create_mini_batches(data, labels, batch_size):
 
-nn = NeuralNetwork(784, 1e-2, 1)
-nn.initiliaze_parameters()
-nn.train_linear_model(shuffled_data.T, shuffled_labels.T, 1000)
-nn.weights_as_image()
-plt.plot(nn.history())
-plt.show()
+    # Calculate the number of batches
+    num_batches = data.shape[0] // batch_size
 
+    # Create mini-batches
+    mini_batches = []
 
+    for i in range(num_batches):
+        start_index = i * batch_size
+        end_index = (i + 1) * batch_size
 
-arr1 = shuffled_testlabels.T
-arr2 = nn.predict(shuffled__testdata.T)
+        data_batch = data[start_index:end_index]
+        labels_batch = labels[start_index:end_index]
+
+        mini_batches.append((data_batch, labels_batch))
+
+    # If there are remaining samples, add them as an additional batch
+    if data.shape[0] % batch_size != 0:
+        start_index = num_batches * batch_size
+        data_batch = data[start_index:]
+        labels_batch = labels[start_index:]
+
+        mini_batches.append((data_batch, labels_batch))
+
+    return mini_batches
 
 def compare_max_indices(arr1, arr2):
-    # Make sure both arrays have the same shape
-    assert arr1.shape == arr2.shape, "Arrays must have the same shape."
 
     # Get the indices of the maximum values along axis 0 (rows)
     max_indices_arr1 = np.argmax(arr1, axis=0)
@@ -167,6 +173,45 @@ def compare_max_indices(arr1, arr2):
     percentage = (matches / arr1.shape[1]) * 100
 
     return percentage
+
+
+# Shuffle the data and labels
+shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
+shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
+
+# Create mini-batches
+batch_size = 500
+mini_batches = create_mini_batches(shuffled_data, shuffled_labels, batch_size)
+mini_batches_test = create_mini_batches(shuffled_data, shuffled_labels, batch_size)
+
+# TODO fix so equal number of batches to simplify training and test plot of history
+
+# Create neural network
+nn = NeuralNetwork(784, 1e-2, 1)
+
+nn.initiliaze_parameters()
+
+# Train the network for number of epochs
+epochs = 300
+
+for y in range(epochs):
+    for x in range(len(mini_batches)):
+        nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
+
+# plot the weights as images
+nn.weights_as_image()
+
+# Plot the training history
+hist, hist_test = nn.history()
+plt.plot(hist, label='training_loss')
+plt.plot(hist_test, label='test_loss')
+plt.legend()
+plt.show()
+
+
+
+arr1 = shuffled_testlabels.T
+arr2 = nn.predict(shuffled_testdata.T)
 
 # Calculate the percentage of correct matches
 correct_percentage = compare_max_indices(arr1, arr2)
