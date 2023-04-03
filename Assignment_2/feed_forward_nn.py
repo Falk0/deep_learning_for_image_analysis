@@ -95,12 +95,24 @@ class NeuralNetwork:
 
 
     def print_parameters(self):
-        print(self.weights1)
+        print(self.weights1.shape)
         print(self.bias1)
     
     def history(self):
        return self.training_history
-        
+    
+    def weights_as_image(self):
+        fig, ax = plt.subplots(2,5, dpi=300)   
+        for x in range(5):
+            im1 = self.weights1[x,:].reshape((28,28))
+            im2 = self.weights1[5+x,:].reshape((28,28))
+            ax[0,x].imshow(im1)
+            ax[0,x].set_xticks([]) 
+            ax[0,x].set_yticks([])
+            ax[1,x].imshow(im2)
+            ax[1,x].set_xticks([]) 
+            ax[1,x].set_yticks([]) 
+        plt.show()
 
 X_train, Y_train, X_test, Y_test = lm.load_mnist()
 
@@ -130,11 +142,14 @@ shuffled__testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test
 
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
-nn.train_linear_model(shuffled_data.T, shuffled_labels.T, 700)
+nn.train_linear_model(shuffled_data.T, shuffled_labels.T, 1000)
+nn.print_parameters()
+nn.weights_as_image()
 plt.plot(nn.history())
 plt.show()
 
-# Generate sample 2D NumPy arrays of size (10, 10000) with random values
+
+
 arr1 = shuffled_testlabels.T
 arr2 = nn.predict(shuffled__testdata.T)
 
