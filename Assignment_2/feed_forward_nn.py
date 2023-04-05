@@ -84,10 +84,7 @@ class NeuralNetwork:
         self.weights1 -= self.learningRate * self.dW1
         self.bias1 -= self.learningRate * self.dB1
 
-    #Forward run
-    def predict(self, X):
-        Z1, A1 = self.model_forward(X)
-        return A1
+
     
 
     #Train the network
@@ -103,6 +100,7 @@ class NeuralNetwork:
     def history(self):
        return self.training_history, self.training_history_test
     
+
     def weights_as_image(self):
         fig, ax = plt.subplots(2,5, dpi=200)   
         for x in range(5):
@@ -115,7 +113,26 @@ class NeuralNetwork:
             ax[1,x].set_xticks([]) 
             ax[1,x].set_yticks([]) 
         plt.show()
+    
+    def compare(self, arr1, arr2):
 
+        # Get the indices of the maximum values along axis 0 (rows)
+        max_indices_arr1 = np.argmax(arr1, axis=0)
+        max_indices_arr2 = np.argmax(arr2, axis=0)
+
+        # Compare the indices and count the matches
+        matches = np.sum(max_indices_arr1 == max_indices_arr2)
+
+        # Calculate the percentage of correct matches
+        percentage = (matches / arr1.shape[1]) * 100
+
+        return percentage
+
+        #Predict and calculate percentage correct
+    def predict(self, X, Y):
+        Z1, A1 = self.model_forward(X)
+        percent = self.compare(A1, Y)
+        return percent
 
 def shuffle_data_and_labels(data, labels):
     # Get the number of samples
@@ -162,19 +179,7 @@ def create_mini_batches(data, labels, num_batches):
     return mini_batches
 
 
-def compare_max_indices(arr1, arr2):
 
-    # Get the indices of the maximum values along axis 0 (rows)
-    max_indices_arr1 = np.argmax(arr1, axis=0)
-    max_indices_arr2 = np.argmax(arr2, axis=0)
-
-    # Compare the indices and count the matches
-    matches = np.sum(max_indices_arr1 == max_indices_arr2)
-
-    # Calculate the percentage of correct matches
-    percentage = (matches / arr1.shape[1]) * 100
-
-    return percentage
 
 
 
@@ -223,10 +228,8 @@ plt.show()
 
 
 
-arr1 = shuffled_testlabels.T
-arr2 = nn.predict(shuffled_testdata.T)
 
-# Calculate the percentage of correct matches
-correct_percentage = compare_max_indices(arr1, arr2)
+correct = nn.predict(shuffled_testdata.T, shuffled_testlabels.T)
 
-print("Percentage of correct matches:", correct_percentage)
+
+print("Percentage of correct matches:", correct)
