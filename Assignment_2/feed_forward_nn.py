@@ -4,8 +4,6 @@ import load_mnist as lm
 import matplotlib.pyplot as plt
 
 
-
-
 class NeuralNetwork:
     # Create a neural network with #hidden layers and #neurons in each layer
     def __init__(self, features, learningRate, *args):
@@ -15,28 +13,31 @@ class NeuralNetwork:
         self.loss= None
         self.weights1 = None
         self.bias1 = None
-        self.dL = None
         self.bA1 = None
         self.dZ1 = None
         self.dW1 = None
         self.dB1 = None
         self.training_history = []
-        self.training_historyTest = []
+        self.training_history_test = []
        
+
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
        # np.random.seed(42)
         self.weights1 = np.random.rand(10, 784)
         self.bias1 = np.random.rand(10, 1)
 
+
     def softmax(self, Z):
         A = np.exp(Z) / sum(np.exp(Z))
         return A
 
+
     def sigmoid(self, Z):
         A = np.exp(Z)/(1 + np.exp(Z))
         return A
-    
+
+
     def relu(self, Z):
         A = np.maximum(Z,0)
         return A
@@ -44,39 +45,40 @@ class NeuralNetwork:
 
     # Run model forward with the input x 
     def model_forward(self, X): 
-        Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
-        A1 = self.softmax(Z1)                   # 10, m
-
-        return Z1, A1
+        Z = np.dot(self.weights1, X) + self.bias1  # 10, m
+        A = self.softmax(Z)                   # 10, m
+        return Z, A
 
 
     def compute_cost(self, Y_pred, Y):
         return (Y_pred - Y)
 
+
     def cross_entropy(self, Y_pred, Y):
         cost = -np.sum(Y * np.log(Y_pred + 1e-10))
-
         return cost
 
 
     #Calculate the gradients 
     def model_backward(self, X, Y, X_test, Y_test):
         features, samples  = X.shape
-        features_test, samples_test  = X.shape
-        Z1, A1 = self.model_forward(X) 
-        Z1test, A1test = self.model_forward(X_test)
-        cost = self.cross_entropy(A1, Y)
-        costTest = self.cross_entropy(A1test, Y_test)
+        features_test, samples_test  = X_test.shape
+        
+        # Calculate cost and save history
+        Z1_test, A1_test = self.model_forward(X_test)
+        cost_test = self.cross_entropy(A1_test, Y_test)/samples_test
+        self.training_history_test.append(cost_test)
+        
+        Z1_train, A1_train = self.model_forward(X)
+        cost_train = self.cross_entropy(A1_train, Y)/samples
+        self.training_history.append(cost_train)
 
-        self.dZ1 =  (-Y + A1)          # 10 m
-
+        # Calculate gradients
+        self.dZ1 = (-Y + A1_train)          # 10 m
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
-
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
 
-        self.training_history.append(np.mean(np.abs(cost))/samples)
-        self.training_historyTest.append(np.mean(np.abs(costTest))/samples_test)
-
+        
     #Update the weight and bias with the pre-calciulated gradients
     def update_parameters(self):
         self.weights1 -= self.learningRate * self.dW1
@@ -90,9 +92,8 @@ class NeuralNetwork:
 
     #Train the network
     def train_linear_model(self, X, Y, X_test, Y_test, iterations):
-        for i in range(iterations):
-            self.model_backward(X, Y, X_test, Y_test)
-            self.update_parameters()
+        self.model_backward(X, Y, X_test, Y_test)
+        self.update_parameters()
 
 
     def print_parameters(self):
@@ -100,7 +101,7 @@ class NeuralNetwork:
         print(self.bias1)
     
     def history(self):
-       return self.training_history, self.training_historyTest
+       return self.training_history, self.training_history_test
     
     def weights_as_image(self):
         fig, ax = plt.subplots(2,5, dpi=200)   
@@ -114,8 +115,6 @@ class NeuralNetwork:
             ax[1,x].set_xticks([]) 
             ax[1,x].set_yticks([]) 
         plt.show()
-
-X_train, Y_train, X_test, Y_test = lm.load_mnist()
 
 
 def shuffle_data_and_labels(data, labels):
@@ -133,10 +132,12 @@ def shuffle_data_and_labels(data, labels):
     return shuffled_data, shuffled_labels
 
 
-def create_mini_batches(data, labels, batch_size):
+def create_mini_batches(data, labels, num_batches):
 
     # Calculate the number of batches
-    num_batches = data.shape[0] // batch_size
+    batch_size = data.shape[0] // num_batches
+
+
 
     # Create mini-batches
     mini_batches = []
@@ -160,6 +161,7 @@ def create_mini_batches(data, labels, batch_size):
 
     return mini_batches
 
+
 def compare_max_indices(arr1, arr2):
 
     # Get the indices of the maximum values along axis 0 (rows)
@@ -175,36 +177,47 @@ def compare_max_indices(arr1, arr2):
     return percentage
 
 
+
+# Load training and test data
+X_train, Y_train, X_test, Y_test = lm.load_mnist()
+
+
 # Shuffle the data and labels
 shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
 shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-batch_size = 500
-mini_batches = create_mini_batches(shuffled_data, shuffled_labels, batch_size)
-mini_batches_test = create_mini_batches(shuffled_data, shuffled_labels, batch_size)
+number_of_batches = 100
+mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_batches)
+mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
 
-# TODO fix so equal number of batches to simplify training and test plot of history
 
 # Create neural network
 nn = NeuralNetwork(784, 1e-2, 1)
-
 nn.initiliaze_parameters()
 
-# Train the network for number of epochs
-epochs = 300
 
+epochs = 200
+history = []
+history_test = []
+
+# Train the network for number of epochs
 for y in range(epochs):
     for x in range(len(mini_batches)):
         nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
+        hist, hist_test = nn.history()
+        history.append(np.mean(hist))
+        history_test.append(np.mean(hist_test))
+
 
 # plot the weights as images
 nn.weights_as_image()
 
-# Plot the training history
 hist, hist_test = nn.history()
-plt.plot(hist, label='training_loss')
-plt.plot(hist_test, label='test_loss')
+
+# Plot the training history
+plt.plot(history, label='training_loss')
+plt.plot(history_test, label='test_loss')
 plt.legend()
 plt.show()
 
