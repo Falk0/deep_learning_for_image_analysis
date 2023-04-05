@@ -10,13 +10,16 @@ class NeuralNetwork:
         self.features = features
         self.args = args
         self.learningRate = learningRate
-        self.loss= None
         self.weights1 = None
         self.bias1 = None
-        self.bA1 = None
+        self.weights2 = None
+        self.bias2 = None
         self.dZ1 = None
         self.dW1 = None
         self.dB1 = None
+        self.dZ2 = None
+        self.dW2 = None
+        self.dB2 = None
         self.training_history = []
         self.training_history_test = []
        
@@ -24,30 +27,38 @@ class NeuralNetwork:
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
        # np.random.seed(42)
-        self.weights1 = np.random.rand(10, 784)
+        self.weights1 = np.random.rand(10, 784) * np.sqrt(1 / 784)
         self.bias1 = np.random.rand(10, 1)
+        self.weights2 = np.random.rand(10, 10) * np.sqrt(1 / 10)
+        self.bias2 = np.random.rand(10, 1)
 
 
     def softmax(self, Z):
-        A = np.exp(Z) / sum(np.exp(Z))
+        Z_max = np.max(Z, axis=0)
+        Z_shifted = Z - Z_max
+        A = np.exp(Z_shifted) / np.sum(np.exp(Z_shifted), axis=0)
         return A
+
 
 
     def sigmoid(self, Z):
         A = np.exp(Z)/(1 + np.exp(Z))
         return A
 
-
     def relu(self, Z):
-        A = np.maximum(Z,0)
-        return A
+        return np.maximum(Z,0)
 
+    def relu_grad(self, Z):
+        return Z > 0
 
     # Run model forward with the input x 
     def model_forward(self, X): 
-        Z = np.dot(self.weights1, X) + self.bias1  # 10, m
-        A = self.softmax(Z)                   # 10, m
-        return Z, A
+        Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
+        A1 = self.relu(Z1)                   # 10, m
+        Z2 = np.dot(self.weights2, A1) + self.bias2
+        A2 = self.softmax(Z2)
+ 
+        return Z1, A1, Z2, A2
 
 
     def compute_cost(self, Y_pred, Y):
@@ -65,16 +76,19 @@ class NeuralNetwork:
         features_test, samples_test  = X_test.shape
         
         # Calculate cost and save history
-        Z1_test, A1_test = self.model_forward(X_test)
-        cost_test = self.cross_entropy(A1_test, Y_test)/samples_test
-        self.training_history_test.append(cost_test)
+        #Z1_test, A1_test = self.model_forward(X_test)
+        #cost_test = self.cross_entropy(A1_test, Y_test)/samples_test
+        #self.training_history_test.append(cost_test)
         
-        Z1_train, A1_train = self.model_forward(X)
-        cost_train = self.cross_entropy(A1_train, Y)/samples
-        self.training_history.append(cost_train)
-
+        Z1_train, A1_train, Z2_train, A2_train = self.model_forward(X)
+        cost_train = self.cross_entropy(A2_train, Y)/samples
+        #self.training_history.append(cost_train)
         # Calculate gradients
-        self.dZ1 = (-Y + A1_train)          # 10 m
+        self.dZ2 = (-Y + A2_train)          # 10 m
+        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T)  # 10, 10  
+        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) # 10, 1
+
+        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)          # 10 m
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
 
@@ -83,13 +97,30 @@ class NeuralNetwork:
     def update_parameters(self):
         self.weights1 -= self.learningRate * self.dW1
         self.bias1 -= self.learningRate * self.dB1
+        self.weights2 -= self.learningRate * self.dW2
+        self.bias2 -= self.learningRate * self.dB2
 
-    #Forward run
-    def predict(self, X):
-        Z1, A1 = self.model_forward(X)
-        return A1
+    def compare(self, arr1, arr2):
+        # Get the indices of the maximum values along axis 0 (rows)
+        max_indices_arr1 = np.argmax(arr1, axis=0)
+        max_indices_arr2 = np.argmax(arr2, axis=0)
+
+        # Compare the indices and count the matches
+        matches = np.sum(max_indices_arr1 == max_indices_arr2)
+
+        # Calculate the percentage of correct matches
+        percentage = (matches / arr1.shape[1]) * 100
+
+        return percentage
+
+
+        #Predict and calculate percentage correct
     
-
+    def predict(self, X, Y):
+        Z1, A1, Z2, A2 = self.model_forward(X)
+        percent = self.compare(A2, Y)
+        return percent
+    
     #Train the network
     def train_linear_model(self, X, Y, X_test, Y_test, iterations):
         self.model_backward(X, Y, X_test, Y_test)
@@ -98,7 +129,9 @@ class NeuralNetwork:
 
     def print_parameters(self):
         print(self.weights1.shape)
-        print(self.bias1)
+        print(self.bias1.shape)
+        print(self.weights2.shape)
+        print(self.bias2.shape)
     
     def history(self):
        return self.training_history, self.training_history_test
@@ -162,20 +195,6 @@ def create_mini_batches(data, labels, num_batches):
     return mini_batches
 
 
-def compare_max_indices(arr1, arr2):
-
-    # Get the indices of the maximum values along axis 0 (rows)
-    max_indices_arr1 = np.argmax(arr1, axis=0)
-    max_indices_arr2 = np.argmax(arr2, axis=0)
-
-    # Compare the indices and count the matches
-    matches = np.sum(max_indices_arr1 == max_indices_arr2)
-
-    # Calculate the percentage of correct matches
-    percentage = (matches / arr1.shape[1]) * 100
-
-    return percentage
-
 
 
 # Load training and test data
@@ -192,12 +211,13 @@ mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_bat
 mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
 
 
+
 # Create neural network
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
 
-epochs = 200
+epochs = 1000
 history = []
 history_test = []
 
@@ -205,28 +225,20 @@ history_test = []
 for y in range(epochs):
     for x in range(len(mini_batches)):
         nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
-        hist, hist_test = nn.history()
-        history.append(np.mean(hist))
-        history_test.append(np.mean(hist_test))
+        #hist, hist_test = nn.history()
+        #history.append(np.mean(hist))
+        #history_test.append(np.mean(hist_test))
 
 
 # plot the weights as images
 nn.weights_as_image()
 
-hist, hist_test = nn.history()
+#hist, hist_test = nn.history()
 
 # Plot the training history
-plt.plot(history, label='training_loss')
-plt.plot(history_test, label='test_loss')
-plt.legend()
-plt.show()
+#plt.plot(history, label='training_loss')
+#plt.plot(history_test, label='test_loss')
+#plt.legend()
+#plt.show()
 
-
-
-arr1 = shuffled_testlabels.T
-arr2 = nn.predict(shuffled_testdata.T)
-
-# Calculate the percentage of correct matches
-correct_percentage = compare_max_indices(arr1, arr2)
-
-print("Percentage of correct matches:", correct_percentage)
+print(nn.predict(shuffled_testdata.T, shuffled_testlabels.T))
