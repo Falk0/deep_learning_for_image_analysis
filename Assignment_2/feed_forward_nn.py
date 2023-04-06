@@ -23,7 +23,9 @@ class NeuralNetwork:
         self.dB2 = None
         
         self.layers = []
-        self.layerOutput = []
+        self.layersIO = []
+        self.layerBackward = []
+
         self.training_history = []
         self.training_history_test = []
        
@@ -56,27 +58,27 @@ class NeuralNetwork:
         return Z > 0
 
     def linar_forward(self, layer , X):
-        print(self.layers[layer][0].shape)
-        print(X.shape)
-
+        #print(self.layers[layer][0].shape)
+        #print(X.shape)
         Z = np.dot(self.layers[layer][0], X) + self.layers[layer][1]   
-        self.layerOutput[layer][0] = Z
+        self.layersIO[layer][0] = X #input
+        self.layersIO[layer][1] = Z #dotproduct
+        
     
     def activation_forward(self, layer):
         if self.layers[layer][2] == 'relu':
-            A = self.relu(self.layerOutput[layer][0])
-            self.layerOutput[layer][1] = A
+            A = self.relu(self.layersIO[layer][1]) #activation of dotproduct
+            self.layersIO[layer][2] = A #save activated dotproduct array
 
         elif self.layers[layer][2] == 'sigmoid':
-            A = self.sigmoid(self.layerOutput[layer][0])
-            self.layerOutput[layer][1] = A
+            A = self.sigmoid(self.layersIO[layer][1])
+            self.layersIO[layer][2] = A
         
         elif self.layers[layer][2] == 'softmax':
-            A = self.softmax(self.layerOutput[layer][0])
-            self.layerOutput[layer][1] = A
+            A = self.softmax(self.layersIO[layer][1])
+            self.layersIO[layer][2] = A
          
-        
-
+   
     # Run model forward with the input x 
     def model_forward(self, X): 
         Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
@@ -111,28 +113,51 @@ class NeuralNetwork:
         #self.training_history.append(cost_train)
         # Calculate gradients
         self.dZ2 = (-Y + A2_train)        
+        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) #dZ2 * input
+        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
+
+        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)  #W2 * dZ2 * dA1        
+        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  #dZ1 * Input
+        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1
+
+
+    def create_layer(self, nodes, activation):
+        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / 784) 
+        bias = np.random.rand(nodes[1], 1)
+        self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
+        self.layersIO.append([None, None, None]) # [input, Z, A]
+        self.layerBackward.append([None, None, None, None]) #[dA, dZ, dW, dB]
+
+    def activation_backward(self, layer, Y):
+        if self.layers[layer][2] == 'relu':
+            dA = self.relu_backward(self.layersIO[layer][1])
+            self.layerBackward[layer][0]
+
+        elif self.layers[layer][2] == 'sigmoid':
+           pass
+
+        
+
+    def linear_backward(self, layer, Y):
+        '''
         self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) 
         self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
 
         self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)          
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1))
+        '''
+        dZ = np.dot(self.layers[layer+1][0].T, self.layerBackward[layer][0]) * self.layerBackward[layer][0]      
+        dW = (1/samples) * np.dot(self.dZ1, X.T)  
+        dB = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1))
 
 
-    def create_layer(self, nodes, activation):
-        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / 784) 
-        bias = np.random.rand(nodes[1], 1)
-        self.layers.append([weights, bias, activation])
-        self.layerOutput.append([None, None])
-        # Z1, A1
-
-
-    def linear_backward(self):
+    def softmax_backward(self,layer, Y):
         pass
 
 
-    def relu_backward(self):
-        pass
+    def relu_backward(self, Z):
+        return Z > 0
 
 
     def sigmoid_backward(self):
@@ -141,6 +166,7 @@ class NeuralNetwork:
 
     def update_parameters_new(self):
         pass
+
 
     #Update the weight and bias with the pre-calciulated gradients
     def update_parameters(self):
@@ -281,9 +307,9 @@ nn.print_layer()
 
 nn.linar_forward(0, mini_batches[0][0].T)
 nn.activation_forward(0)
-nn.linar_forward(1, nn.layerOutput[0][1])
+nn.linar_forward(1, nn.layersIO[0][2])
 nn.activation_forward(1)
-nn.linar_forward(2, nn.layerOutput[1][1])
+nn.linar_forward(2, nn.layersIO[1][2])
 nn.activation_forward(2)
 
 
