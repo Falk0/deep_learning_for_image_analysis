@@ -20,6 +20,7 @@ class NeuralNetwork:
         self.dZ2 = None
         self.dW2 = None
         self.dB2 = None
+        self.layers = []
         self.training_history = []
         self.training_history_test = []
        
@@ -27,10 +28,11 @@ class NeuralNetwork:
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
        # np.random.seed(42)
-        self.weights1 = np.random.rand(10, 784) * np.sqrt(1 / 784)
-        self.bias1 = np.random.rand(10, 1)
-        self.weights2 = np.random.rand(10, 10) * np.sqrt(1 / 10)
+        self.weights1 = np.random.rand(100, 784) * np.sqrt(1 / 784)
+        self.bias1 = np.random.rand(100, 1)
+        self.weights2 = np.random.rand(10, 100) * np.sqrt(1 / 100)
         self.bias2 = np.random.rand(10, 1)
+
 
 
     def softmax(self, Z):
@@ -38,7 +40,6 @@ class NeuralNetwork:
         Z_shifted = Z - Z_max
         A = np.exp(Z_shifted) / np.sum(np.exp(Z_shifted), axis=0)
         return A
-
 
 
     def sigmoid(self, Z):
@@ -84,15 +85,33 @@ class NeuralNetwork:
         cost_train = self.cross_entropy(A2_train, Y)/samples
         #self.training_history.append(cost_train)
         # Calculate gradients
-        self.dZ2 = (-Y + A2_train)          # 10 m
-        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T)  # 10, 10  
-        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) # 10, 1
+        self.dZ2 = (-Y + A2_train)        
+        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) 
+        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
 
-        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)          # 10 m
-        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
-        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
+        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)          
+        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  
+        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1))
 
-        
+    def create_layers(self, nodes, activation):
+        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / 784) 
+        bias = np.random.rand(nodes[1], 1)
+        self.layers.append([weights, bias, activation])
+        self.variables.append([None, None, None])
+
+    def linear_backward(self):
+        pass
+
+    def relu_backward(self):
+        pass
+
+    def sigmoid_backward(self):
+        pass
+
+    def update_parameters_new(self):
+        pass
+
+
     #Update the weight and bias with the pre-calciulated gradients
     def update_parameters(self):
         self.weights1 -= self.learningRate * self.dW1
@@ -100,6 +119,7 @@ class NeuralNetwork:
         self.weights2 -= self.learningRate * self.dW2
         self.bias2 -= self.learningRate * self.dB2
 
+    
     def compare(self, arr1, arr2):
         # Get the indices of the maximum values along axis 0 (rows)
         max_indices_arr1 = np.argmax(arr1, axis=0)
@@ -114,8 +134,8 @@ class NeuralNetwork:
         return percentage
 
 
-        #Predict and calculate percentage correct
-    
+       
+     #Predict and calculate percentage correct
     def predict(self, X, Y):
         Z1, A1, Z2, A2 = self.model_forward(X)
         percent = self.compare(A2, Y)
@@ -217,12 +237,13 @@ nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
 
-epochs = 1000
+epochs = 100
 history = []
 history_test = []
 
 # Train the network for number of epochs
 for y in range(epochs):
+    print(str(y) + ' out of ' + str(epochs) + ' epochs')
     for x in range(len(mini_batches)):
         nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
         #hist, hist_test = nn.history()
