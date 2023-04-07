@@ -29,7 +29,7 @@ class NeuralNetwork:
         self.training_history = []
         self.training_history_test = []
        
-
+       
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
        # np.random.seed(42)
@@ -37,7 +37,6 @@ class NeuralNetwork:
         self.bias1 = np.random.rand(100, 1)
         self.weights2 = np.random.rand(10, 100) * np.sqrt(1 / 100)
         self.bias2 = np.random.rand(10, 1)
-
 
 
     def softmax(self, Z):
@@ -51,33 +50,41 @@ class NeuralNetwork:
         A = np.exp(Z)/(1 + np.exp(Z))
         return A
 
+
     def relu(self, Z):
         return np.maximum(Z,0)
+
 
     def relu_grad(self, Z):
         return Z > 0
 
-    def linar_forward(self, layer , X):
-        #print(self.layers[layer][0].shape)
-        #print(X.shape)
-        Z = np.dot(self.layers[layer][0], X) + self.layers[layer][1]   
-        self.layersIO[layer][0] = X #input
-        self.layersIO[layer][1] = Z #dotproduct
-        
-    
-    def activation_forward(self, layer):
-        if self.layers[layer][2] == 'relu':
-            A = self.relu(self.layersIO[layer][1]) #activation of dotproduct
-            self.layersIO[layer][2] = A #save activated dotproduct array
 
-        elif self.layers[layer][2] == 'sigmoid':
-            A = self.sigmoid(self.layersIO[layer][1])
-            self.layersIO[layer][2] = A
-        
-        elif self.layers[layer][2] == 'softmax':
-            A = self.softmax(self.layersIO[layer][1])
-            self.layersIO[layer][2] = A
-         
+    def predict(self, X, Y):
+        Z1, A1, Z2, A2 = self.model_forward(X)
+        percent = self.compare(A2, Y)
+        return percent
+    
+
+    #Train the network
+    def train_linear_model(self, X, Y, X_test, Y_test, iterations):
+        self.model_backward(X, Y, X_test, Y_test)
+        self.update_parameters()
+
+
+    def print_parameters(self):
+        print(self.weights1.shape)
+        print(self.bias1.shape)
+        print(self.weights2.shape)
+        print(self.bias2.shape)
+
+
+    #Update the weight and bias with the pre-calciulated gradients
+    def update_parameters(self):
+        self.weights1 -= self.learningRate * self.dW1
+        self.bias1 -= self.learningRate * self.dB1
+        self.weights2 -= self.learningRate * self.dW2
+        self.bias2 -= self.learningRate * self.dB2
+    
    
     # Run model forward with the input x 
     def model_forward(self, X): 
@@ -128,6 +135,27 @@ class NeuralNetwork:
         self.layersIO.append([None, None, None]) # [input, Z, A]
         self.layerGradients.append([None, None, None, None]) #[dZ, dW, dB, dA]
 
+
+    def linear_forward(self, layer , input):
+        Z = np.dot(self.layers[layer][0], input) + self.layers[layer][1]   
+        self.layersIO[layer][0] = input #input
+        self.layersIO[layer][1] = Z #dotproduct
+
+
+    def activation_forward(self, layer):
+        if self.layers[layer][2] == 'relu':
+            A = self.relu(self.layersIO[layer][1]) #activation of dotproduct
+            self.layersIO[layer][2] = A #save activated dotproduct array
+
+        elif self.layers[layer][2] == 'sigmoid':
+            A = self.sigmoid(self.layersIO[layer][1])
+            self.layersIO[layer][2] = A
+        
+        elif self.layers[layer][2] == 'softmax':
+            A = self.softmax(self.layersIO[layer][1])
+            self.layersIO[layer][2] = A
+         
+
     def activation_backward(self, layer, Y):
         if self.layers[layer][2] == 'relu':
             dZ = self.relu_backward(self.layersIO[layer][1])
@@ -139,29 +167,35 @@ class NeuralNetwork:
         elif self.layers[layer][2] == 'softmax':
             dA = - Y + self.layersIO[layer][2]
             self.layerGradients[layer][3] = dA
-            
-
-
         
 
-
     def linear_backward(self, layer):
+        batch_size = self.layersIO[layer][0].shape[1]
+
+        '''        
+        self.dZ2 = (-Y + A2_train)        
+        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) #dZ2 * input
+        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
+
+        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)  #W2 * dZ2 * dA1        
+        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  #dZ1 * Input
+        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1
+        '''
+        
         if self.layers[layer][2] == 'softmax':
             dZ = self.layerGradients[layer][3]
-            dW = (1/600) * np.dot(dZ, self.layersIO[layer-1][1].T)
-            dB = (1/600) * np.reshape(np.sum(dZ,1), (10,1))
+            dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer-1][2].T)
+            dB = (1/batch_size) * np.reshape(np.sum(dZ, axis=1), (dZ.shape[0], 1))
 
-            self.layerGradients[layer] = [dZ, dW, dB]
+
+            self.layerGradients[layer] = [dZ, dW, dB, None]
 
         else:
-            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) * self.layerGradients[layer][0]
-            dW = (1/600) * np.dot(self.layerGradients[layer][0], self.layersIO[layer][0].T)
-            dB = (1/600) * np.reshape(np.sum(self.layerGradients[layer][0],1), (100,1))
+            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) * self.relu_backward(self.layersIO[layer][1])
+            dW = (1/batch_size) * np.dot(self.layerGradients[layer][0], self.layersIO[layer][0].T)
+            dB = (1/batch_size) * np.reshape(np.sum(self.layerGradients[layer][0],1), (dZ.shape[0],1))
        
-            self.layerGradients[layer] = [dZ, dW, dB]
-
-    def softmax_backward(self,layer, Y):
-        pass
+            self.layerGradients[layer] = [dZ, dW, dB, None]
 
 
     def relu_backward(self, Z):
@@ -174,18 +208,10 @@ class NeuralNetwork:
 
     def update_parameters_new(self):
         for i in range(len(self.layers)):
-            print(i)
             self.layers[i][0] -= self.learningRate * self.layerGradients[i][1]
             self.layers[i][1] -= self.learningRate * self.layerGradients[i][2]
+        
 
-    #Update the weight and bias with the pre-calciulated gradients
-    def update_parameters(self):
-        self.weights1 -= self.learningRate * self.dW1
-        self.bias1 -= self.learningRate * self.dB1
-        self.weights2 -= self.learningRate * self.dW2
-        self.bias2 -= self.learningRate * self.dB2
-
-    
     def compare(self, arr1, arr2):
         # Get the indices of the maximum values along axis 0 (rows)
         max_indices_arr1 = np.argmax(arr1, axis=0)
@@ -204,23 +230,6 @@ class NeuralNetwork:
      #Predict and calculate percentage correct
     
 
-    def predict(self, X, Y):
-        Z1, A1, Z2, A2 = self.model_forward(X)
-        percent = self.compare(A2, Y)
-        return percent
-    
-    #Train the network
-    def train_linear_model(self, X, Y, X_test, Y_test, iterations):
-        self.model_backward(X, Y, X_test, Y_test)
-        self.update_parameters()
-
-
-    def print_parameters(self):
-        print(self.weights1.shape)
-        print(self.bias1.shape)
-        print(self.weights2.shape)
-        print(self.bias2.shape)
-    
     def print_layer(self):
         for i in range(len(self.layers)):
             print(self.layers[i][0].shape)
@@ -290,7 +299,6 @@ def create_mini_batches(data, labels, num_batches):
 
 
 
-
 # Load training and test data
 X_train, Y_train, X_test, Y_test = lm.load_mnist()
 
@@ -305,8 +313,7 @@ mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_bat
 mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
 
 
-
-# Create neural network
+    # Create neural network
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
@@ -315,19 +322,30 @@ nn.create_layer([100, 10], 'softmax')
 
 nn.print_layer()
 
+for x in range(100):
+    print(x)
 
-nn.linar_forward(0, mini_batches[0][0].T)
+    nn.linear_forward(0, shuffled_data.T)
+    nn.activation_forward(0)
+    nn.linear_forward(1, nn.layersIO[0][2])
+    nn.activation_forward(1)
+
+    nn.activation_backward(1, shuffled_labels.T)
+    nn.linear_backward(1)
+    nn.activation_backward(0, shuffled_labels.T)
+    nn.linear_backward(0)
+        
+    nn.update_parameters_new()
+    
+
+nn.linear_forward(0, shuffled_testdata.T)
 nn.activation_forward(0)
-nn.linar_forward(1, nn.layersIO[0][2])
+nn.linear_forward(1, nn.layersIO[0][2])
 nn.activation_forward(1)
-nn.activation_backward(1, mini_batches[0][1].T)
-nn.linear_backward(1)
-nn.activation_backward(0, mini_batches[0][1].T)
-nn.linear_backward(0)
-nn.update_parameters_new()
-nn.print_layer()
 
-#TODO one backward pass works, index out of range in the second???
+percent = nn.compare(nn.layersIO[1][2], shuffled_testlabels.T)
+print(percent)
+
 
 
 epochs = 1
