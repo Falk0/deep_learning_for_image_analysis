@@ -32,31 +32,14 @@ class NeuralNetwork:
        
     # Create arrays with random parameters 
     def initiliaze_parameters(self):
-       # np.random.seed(42)
+        np.random.seed(42)
         self.weights1 = np.random.rand(100, 784) * np.sqrt(1 / 784)
         self.bias1 = np.random.rand(100, 1)
         self.weights2 = np.random.rand(10, 100) * np.sqrt(1 / 100)
         self.bias2 = np.random.rand(10, 1)
 
 
-    def softmax(self, Z):
-        Z_max = np.max(Z, axis=0)
-        Z_shifted = Z - Z_max
-        A = np.exp(Z_shifted) / np.sum(np.exp(Z_shifted), axis=0)
-        return A
 
-
-    def sigmoid(self, Z):
-        A = np.exp(Z)/(1 + np.exp(Z))
-        return A
-
-
-    def relu(self, Z):
-        return np.maximum(Z,0)
-
-
-    def relu_grad(self, Z):
-        return Z > 0
 
 
     def predict(self, X, Y):
@@ -129,8 +112,8 @@ class NeuralNetwork:
 
 
     def create_layer(self, nodes, activation):
-        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / (nodes[0]))
-        bias = np.random.rand(nodes[1], 1)
+        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(2 / (nodes[0]))
+        bias = np.random.rand(nodes[1], 1) * np.sqrt(2 / (nodes[0]))
         self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
         self.layersIO.append([None, None, None]) # [input, Z, A]
         self.layerGradients.append([None, None, None, None]) #[dZ, dW, dB, dA]
@@ -158,25 +141,18 @@ class NeuralNetwork:
 
     def activation_backward(self, layer, Y):
         if self.layers[layer][2] == 'relu':
-            dZ = self.relu_backward(self.layersIO[layer][1])
-            self.layerGradients[layer][0] = dZ
+            dA = self.relu_backward(self.layersIO[layer][1])
+            self.layerGradients[layer][3] = dA
 
         elif self.layers[layer][2] == 'sigmoid':
-           pass
+            dA = self.sigmoid_backward(self.layersIO[layer][1])
+            self.layerGradients[layer][3] = dA
 
         
 
     def linear_backward(self, layer, Y):
         batch_size = self.layersIO[layer][0].shape[1]
-        ''' 
-        self.dZ2 = (-Y + A2_train)        
-        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) #dZ2 * input
-        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
 
-        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)  #W2 * dZ2 * dA1        
-        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  #dZ1 * Input
-        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1'''        
-        
         if self.layers[layer][2] == 'softmax':
             dZ = - Y + self.layersIO[layer][2]
             dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer-1][2].T)
@@ -185,19 +161,39 @@ class NeuralNetwork:
             self.layerGradients[layer] = [dZ, dW, dB, None]
 
         else:
-            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) *  self.relu_backward(self.layersIO[layer][1])
+            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) *  self.layerGradients[layer][3]
             dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer][0].T)
             dB = (1/batch_size) * np.reshape(np.sum(dZ,1), (dZ.shape[0],1))
        
             self.layerGradients[layer] = [dZ, dW, dB, None]
+       
+    def softmax(self, Z):
+        Z_max = np.max(Z, axis=0)
+        Z_shifted = Z - Z_max
+        A = np.exp(Z_shifted) / np.sum(np.exp(Z_shifted), axis=0)
+        return A
+
+
+    def sigmoid(self, Z):
+        A = np.exp(Z)/(1 + np.exp(Z))
+        return A
+
+
+    def relu(self, Z):
+        return np.maximum(Z,0)
+
+
+    def relu_grad(self, Z):
+        return Z > 0
 
 
     def relu_backward(self, Z):
         return Z > 0
 
 
-    def sigmoid_backward(self):
-        pass
+    def sigmoid_backward(self, Z):
+        s = self.sigmoid(Z)
+        return s * (1 - s)
 
 
     def update_parameters_new(self):
@@ -302,7 +298,7 @@ shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
 shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-number_of_batches = 600
+number_of_batches = 2000
 mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_batches)
 mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
 
@@ -312,14 +308,14 @@ mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, 
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
-nn.create_layer([784, 40], 'relu')
-nn.create_layer([40,40], 'relu')
-nn.create_layer([40,40], 'relu')
+nn.create_layer([784, 128], 'relu')
+nn.create_layer([128,64], 'relu')
+nn.create_layer([64,40], 'relu')
 nn.create_layer([40, 10], 'softmax')
 
 nn.print_layer()
 
-epochs = 50
+epochs = 30
 
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
@@ -354,6 +350,8 @@ nn.activation_forward(2)
 nn.linear_forward(3, nn.layersIO[2][2])
 nn.activation_forward(3)
 
+
+#TODO make sure this can be looped in a function
 
 percent = nn.compare(nn.layersIO[3][2], shuffled_testlabels.T)
 print(percent)
