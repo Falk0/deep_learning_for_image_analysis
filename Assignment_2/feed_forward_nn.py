@@ -129,7 +129,7 @@ class NeuralNetwork:
 
 
     def create_layer(self, nodes, activation):
-        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / 784) 
+        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / (nodes[0]))
         bias = np.random.rand(nodes[1], 1)
         self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
         self.layersIO.append([None, None, None]) # [input, Z, A]
@@ -164,36 +164,30 @@ class NeuralNetwork:
         elif self.layers[layer][2] == 'sigmoid':
            pass
 
-        elif self.layers[layer][2] == 'softmax':
-            dA = - Y + self.layersIO[layer][2]
-            self.layerGradients[layer][3] = dA
         
 
-    def linear_backward(self, layer):
+    def linear_backward(self, layer, Y):
         batch_size = self.layersIO[layer][0].shape[1]
-
-        '''        
+        ''' 
         self.dZ2 = (-Y + A2_train)        
         self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) #dZ2 * input
         self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
 
         self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)  #W2 * dZ2 * dA1        
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  #dZ1 * Input
-        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1
-        '''
+        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1'''        
         
         if self.layers[layer][2] == 'softmax':
-            dZ = self.layerGradients[layer][3]
+            dZ = - Y + self.layersIO[layer][2]
             dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer-1][2].T)
-            dB = (1/batch_size) * np.reshape(np.sum(dZ, axis=1), (dZ.shape[0], 1))
-
+            dB = (1/batch_size) * np.reshape(np.sum(dZ,1), (dZ.shape[0],1))
 
             self.layerGradients[layer] = [dZ, dW, dB, None]
 
         else:
-            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) * self.relu_backward(self.layersIO[layer][1])
-            dW = (1/batch_size) * np.dot(self.layerGradients[layer][0], self.layersIO[layer][0].T)
-            dB = (1/batch_size) * np.reshape(np.sum(self.layerGradients[layer][0],1), (dZ.shape[0],1))
+            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) *  self.relu_backward(self.layersIO[layer][1])
+            dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer][0].T)
+            dB = (1/batch_size) * np.reshape(np.sum(dZ,1), (dZ.shape[0],1))
        
             self.layerGradients[layer] = [dZ, dW, dB, None]
 
@@ -308,46 +302,64 @@ shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
 shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-number_of_batches = 100
+number_of_batches = 600
 mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_batches)
 mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
 
 
-    # Create neural network
+
+# Create neural network
 nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
-nn.create_layer([784, 100], 'relu')
-nn.create_layer([100, 10], 'softmax')
+nn.create_layer([784, 40], 'relu')
+nn.create_layer([40,40], 'relu')
+nn.create_layer([40,40], 'relu')
+nn.create_layer([40, 10], 'softmax')
 
 nn.print_layer()
 
-for x in range(100):
-    print(x)
+epochs = 50
 
-    nn.linear_forward(0, shuffled_data.T)
-    nn.activation_forward(0)
-    nn.linear_forward(1, nn.layersIO[0][2])
-    nn.activation_forward(1)
+for y in range(epochs):
+    print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
+    for x in range(len(mini_batches)):
+        nn.linear_forward(0, mini_batches[x][0].T)
+        nn.activation_forward(0)
+        nn.linear_forward(1, nn.layersIO[0][2])
+        nn.activation_forward(1)
+        nn.linear_forward(2, nn.layersIO[1][2])
+        nn.activation_forward(2)
+        nn.linear_forward(3, nn.layersIO[2][2])
+        nn.activation_forward(3)
 
-    nn.activation_backward(1, shuffled_labels.T)
-    nn.linear_backward(1)
-    nn.activation_backward(0, shuffled_labels.T)
-    nn.linear_backward(0)
-        
-    nn.update_parameters_new()
-    
+        nn.activation_backward(3, mini_batches[x][1].T)
+        nn.linear_backward(3, mini_batches[x][1].T)
+        nn.activation_backward(2, mini_batches[x][1].T)
+        nn.linear_backward(2, mini_batches[x][1].T)
+        nn.activation_backward(1, mini_batches[x][1].T)
+        nn.linear_backward(1, mini_batches[x][1].T)
+        nn.activation_backward(0, mini_batches[x][1].T)
+        nn.linear_backward(0, mini_batches[x][1].T)
+            
+        nn.update_parameters_new()
+
 
 nn.linear_forward(0, shuffled_testdata.T)
 nn.activation_forward(0)
 nn.linear_forward(1, nn.layersIO[0][2])
 nn.activation_forward(1)
+nn.linear_forward(2, nn.layersIO[1][2])
+nn.activation_forward(2)
+nn.linear_forward(3, nn.layersIO[2][2])
+nn.activation_forward(3)
 
-percent = nn.compare(nn.layersIO[1][2], shuffled_testlabels.T)
+
+percent = nn.compare(nn.layersIO[3][2], shuffled_testlabels.T)
 print(percent)
 
 
-
+'''
 epochs = 1
 history = []
 history_test = []
@@ -373,4 +385,4 @@ nn.weights_as_image()
 #plt.legend()
 #plt.show()
 
-print(nn.predict(shuffled_testdata.T, shuffled_testlabels.T))
+print(nn.predict(shuffled_testdata.T, shuffled_testlabels.T))'''
