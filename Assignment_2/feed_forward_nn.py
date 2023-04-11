@@ -6,113 +6,24 @@ import matplotlib.pyplot as plt
 
 class NeuralNetwork:
     # Create a neural network with #hidden layers and #neurons in each layer
-    def __init__(self, features, learningRate, *args):
+    def __init__(self, features, learningRate, X_train, Y_train, X_test,Y_test):
         self.features = features
-        self.args = args
         self.learningRate = learningRate
-        
-        self.weights1 = None
-        self.bias1 = None
-        self.weights2 = None
-        self.bias2 = None
-        self.dZ1 = None
-        self.dW1 = None
-        self.dB1 = None
-        self.dZ2 = None
-        self.dW2 = None
-        self.dB2 = None
-        
         self.layers = []
         self.layersIO = []
         self.layerGradients = []
-
         self.training_history = []
         self.training_history_test = []
        
-       
-    # Create arrays with random parameters 
-    def initiliaze_parameters(self):
-        np.random.seed(42)
-        self.weights1 = np.random.rand(100, 784) * np.sqrt(1 / 784)
-        self.bias1 = np.random.rand(100, 1)
-        self.weights2 = np.random.rand(10, 100) * np.sqrt(1 / 100)
-        self.bias2 = np.random.rand(10, 1)
-
-
-
-
-
-    def predict(self, X, Y):
-        Z1, A1, Z2, A2 = self.model_forward(X)
-        percent = self.compare(A2, Y)
-        return percent
-    
-
-    #Train the network
-    def train_linear_model(self, X, Y, X_test, Y_test, iterations):
-        self.model_backward(X, Y, X_test, Y_test)
-        self.update_parameters()
-
-
-    def print_parameters(self):
-        print(self.weights1.shape)
-        print(self.bias1.shape)
-        print(self.weights2.shape)
-        print(self.bias2.shape)
-
-
-    #Update the weight and bias with the pre-calciulated gradients
-    def update_parameters(self):
-        self.weights1 -= self.learningRate * self.dW1
-        self.bias1 -= self.learningRate * self.dB1
-        self.weights2 -= self.learningRate * self.dW2
-        self.bias2 -= self.learningRate * self.dB2
-    
-   
-    # Run model forward with the input x 
-    def model_forward(self, X): 
-        Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
-        A1 = self.relu(Z1)                   # 10, m
-        Z2 = np.dot(self.weights2, A1) + self.bias2
-        A2 = self.softmax(Z2)
- 
-        return Z1, A1, Z2, A2
-
-
-    def compute_cost(self, Y_pred, Y):
-        return (Y_pred - Y)
-
 
     def cross_entropy(self, Y_pred, Y):
         cost = -np.sum(Y * np.log(Y_pred + 1e-10))
         return cost
 
 
-    #Calculate the gradients 
-    def model_backward(self, X, Y, X_test, Y_test):
-        features, samples  = X.shape
-        features_test, samples_test  = X_test.shape
-        
-        # Calculate cost and save history
-        #Z1_test, A1_test = self.model_forward(X_test)
-        #cost_test = self.cross_entropy(A1_test, Y_test)/samples_test
-        #self.training_history_test.append(cost_test)
-        
-        Z1_train, A1_train, Z2_train, A2_train = self.model_forward(X)
-        cost_train = self.cross_entropy(A2_train, Y)/samples
-        #self.training_history.append(cost_train)
-        # Calculate gradients
-        self.dZ2 = (-Y + A2_train)        
-        self.dW2 = (1/samples) * np.dot(self.dZ2, A1_train.T) #dZ2 * input
-        self.dB2 = (1/samples) * np.reshape(np.sum(self.dZ2,1),(10,1)) 
-
-        self.dZ1 = np.dot(self.weights2.T,self.dZ2) * self.relu_grad(Z1_train)  #W2 * dZ2 * dA1        
-        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  #dZ1 * Input
-        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(100,1)) #dZ1
-
-
     def create_layer(self, nodes, activation):
-        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(2 / (nodes[0]))
+        np.random.seed(42)
+        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / (nodes[0]))
         bias = np.random.rand(nodes[1], 1) * np.sqrt(2 / (nodes[0]))
         self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
         self.layersIO.append([None, None, None]) # [input, Z, A]
@@ -141,11 +52,11 @@ class NeuralNetwork:
 
     def activation_backward(self, layer, Y):
         if self.layers[layer][2] == 'relu':
-            dA = self.relu_backward(self.layersIO[layer][1])
+            dA = self.relu_backward(self.layersIO[layer][2])
             self.layerGradients[layer][3] = dA
 
         elif self.layers[layer][2] == 'sigmoid':
-            dA = self.sigmoid_backward(self.layersIO[layer][1])
+            dA = self.sigmoid_backward(self.layersIO[layer][2])
             self.layerGradients[layer][3] = dA
 
         
@@ -158,14 +69,15 @@ class NeuralNetwork:
             dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer-1][2].T)
             dB = (1/batch_size) * np.reshape(np.sum(dZ,1), (dZ.shape[0],1))
 
-            self.layerGradients[layer] = [dZ, dW, dB, None]
+            self.layerGradients[layer][0:3] = dZ, dW, dB
 
         else:
-            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) *  self.layerGradients[layer][3]
+            dA = self.layerGradients[layer][3]
+            dZ = np.dot(self.layers[layer+1][0].T, self.layerGradients[layer+1][0]) * dA
             dW = (1/batch_size) * np.dot(dZ, self.layersIO[layer][0].T)
             dB = (1/batch_size) * np.reshape(np.sum(dZ,1), (dZ.shape[0],1))
        
-            self.layerGradients[layer] = [dZ, dW, dB, None]
+            self.layerGradients[layer][0:3] = dZ, dW, dB
        
     def softmax(self, Z):
         Z_max = np.max(Z, axis=0)
@@ -175,26 +87,23 @@ class NeuralNetwork:
 
 
     def sigmoid(self, Z):
-        A = np.exp(Z)/(1 + np.exp(Z))
+        A = 1 / (1 + np.exp(-Z))
         return A
+
 
 
     def relu(self, Z):
         return np.maximum(Z,0)
 
 
-    def relu_grad(self, Z):
-        return Z > 0
-
-
     def relu_backward(self, Z):
         return Z > 0
 
 
-    def sigmoid_backward(self, Z):
-        s = self.sigmoid(Z)
-        return s * (1 - s)
-
+    def sigmoid_backward(self, A):
+        return A * (1 - A)
+    
+        
 
     def update_parameters_new(self):
         for i in range(len(self.layers)):
@@ -241,6 +150,7 @@ class NeuralNetwork:
             ax[1,x].set_xticks([]) 
             ax[1,x].set_yticks([]) 
         plt.show()
+    
 
 
 def shuffle_data_and_labels(data, labels):
@@ -260,12 +170,9 @@ def shuffle_data_and_labels(data, labels):
 
 def create_mini_batches(data, labels, num_batches):
 
-    # Calculate the number of batches
+    # Calculate the batch size
     batch_size = data.shape[0] // num_batches
 
-
-
-    # Create mini-batches
     mini_batches = []
 
     for i in range(num_batches):
@@ -277,7 +184,7 @@ def create_mini_batches(data, labels, num_batches):
 
         mini_batches.append((data_batch, labels_batch))
 
-    # If there are remaining samples, add them as an additional batch
+    # Take the remaining and make a batch
     if data.shape[0] % batch_size != 0:
         start_index = num_batches * batch_size
         data_batch = data[start_index:]
@@ -305,8 +212,7 @@ mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, 
 
 
 # Create neural network
-nn = NeuralNetwork(784, 1e-2, 1)
-nn.initiliaze_parameters()
+nn = NeuralNetwork(784, 1e-2, X_train, Y_train, X_test, Y_test)
 
 nn.create_layer([784, 128], 'relu')
 nn.create_layer([128,64], 'relu')
@@ -315,7 +221,7 @@ nn.create_layer([40, 10], 'softmax')
 
 nn.print_layer()
 
-epochs = 30
+epochs = 60
 
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
