@@ -186,7 +186,7 @@ shuffled_data, shuffled_labels = shuffle_data_and_labels(X_train, Y_train)
 shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-number_of_batches = 100
+number_of_batches = 2000
 mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_batches)
 
 
@@ -196,7 +196,7 @@ nn = NeuralNetwork(784, 1e-2, 1)
 nn.initiliaze_parameters()
 
 
-epochs = 200
+epochs = 50
 history = []
 history_test = []
 accuracy = []
@@ -204,17 +204,19 @@ test_accuracy = []
 xline = []
 
 # Train the network for number of epochs
+iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
     for x in range(len(mini_batches)):
         nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T,  1)
         
-        if x % 25 == 0:
+        if x % 200 == 0:
             history.append(nn.cross_entropy(mini_batches[x][0].T, mini_batches[x][1].T))
             history_test.append(nn.cross_entropy(shuffled_testdata.T,shuffled_testlabels.T))
             accuracy.append(nn.predict(mini_batches[x][0].T, mini_batches[x][1].T))
             test_accuracy.append(nn.predict(shuffled_testdata.T,shuffled_testlabels.T))
-            xline.append((y * 150) + x)
+            iter += 200
+            xline.append(iter)
 
 
 # plot the weights as images
@@ -239,10 +241,6 @@ ax2.grid()
 ax2.legend()
 
 plt.show()
-
-
-
-
 
 correct = nn.predict(shuffled_testdata.T, shuffled_testlabels.T)
 
