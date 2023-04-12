@@ -17,6 +17,8 @@ class NeuralNetwork:
         self.dZ1 = None
         self.dW1 = None
         self.dB1 = None
+        self.A1 = None
+        self.Z2 = None
         self.training_history = []
         self.training_history_test = []
        
@@ -45,36 +47,26 @@ class NeuralNetwork:
 
     # Run model forward with the input x 
     def model_forward(self, X): 
-        Z = np.dot(self.weights1, X) + self.bias1  # 10, m
-        A = self.softmax(Z)                   # 10, m
-        return Z, A
+        self.Z1 = np.dot(self.weights1, X) + self.bias1  # 10, m
+        self.A1 = self.softmax(self.Z1)                   # 10, m
 
 
-    def compute_cost(self, Y_pred, Y):
-        return (Y_pred - Y)
 
-
-    def cross_entropy(self, Y_pred, Y):
-        cost = -np.sum(Y * np.log(Y_pred + 1e-10))
+    def cross_entropy(self, X, Y):
+        self.model_forward(X)
+        batch_size = Y.shape[1]
+        cost = -np.sum(Y * np.log(self.A1 + 1e-10)) / batch_size
         return cost
 
 
     #Calculate the gradients 
-    def model_backward(self, X, Y, X_test, Y_test):
+    def model_backward(self, X, Y):
         features, samples  = X.shape
         features_test, samples_test  = X_test.shape
-        
-        # Calculate cost and save history
-        Z1_test, A1_test = self.model_forward(X_test)
-        cost_test = self.cross_entropy(A1_test, Y_test)/samples_test
-        self.training_history_test.append(cost_test)
-        
-        Z1_train, A1_train = self.model_forward(X)
-        cost_train = self.cross_entropy(A1_train, Y)/samples
-        self.training_history.append(cost_train)
+        self.model_forward(X)
 
         # Calculate gradients
-        self.dZ1 = (-Y + A1_train)          # 10 m
+        self.dZ1 = (-Y + self.A1)          # 10 m
         self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
         self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
 
@@ -88,8 +80,8 @@ class NeuralNetwork:
     
 
     #Train the network
-    def train_linear_model(self, X, Y, X_test, Y_test, iterations):
-        self.model_backward(X, Y, X_test, Y_test)
+    def train_linear_model(self, X, Y, iterations):
+        self.model_backward(X, Y)
         self.update_parameters()
 
 
@@ -129,9 +121,11 @@ class NeuralNetwork:
         return percentage
 
         #Predict and calculate percentage correct
+    
+    
     def predict(self, X, Y):
-        Z1, A1 = self.model_forward(X)
-        percent = self.compare(A1, Y)
+        self.model_forward(X)
+        percent = self.compare(self.A1, Y)
         return percent
 
 def shuffle_data_and_labels(data, labels):
@@ -194,7 +188,7 @@ shuffled_testdata, shuffled_testlabels = shuffle_data_and_labels(X_test, Y_test)
 # Create mini-batches
 number_of_batches = 100
 mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_batches)
-mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, number_of_batches)
+
 
 
 # Create neural network
@@ -205,26 +199,47 @@ nn.initiliaze_parameters()
 epochs = 200
 history = []
 history_test = []
+accuracy = []
+test_accuracy = []
+xline = []
 
 # Train the network for number of epochs
 for y in range(epochs):
+    print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
     for x in range(len(mini_batches)):
-        nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
-        hist, hist_test = nn.history()
-        history.append(np.mean(hist))
-        history_test.append(np.mean(hist_test))
+        nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T,  1)
+        
+        if x % 25 == 0:
+            history.append(nn.cross_entropy(mini_batches[x][0].T, mini_batches[x][1].T))
+            history_test.append(nn.cross_entropy(shuffled_testdata.T,shuffled_testlabels.T))
+            accuracy.append(nn.predict(mini_batches[x][0].T, mini_batches[x][1].T))
+            test_accuracy.append(nn.predict(shuffled_testdata.T,shuffled_testlabels.T))
+            xline.append((y * 150) + x)
 
 
 # plot the weights as images
 nn.weights_as_image()
 
-hist, hist_test = nn.history()
+#Plot training cost and accuarcy history after training
+fig, (ax1, ax2) = plt.subplots(1, 2)
+fig.set_figwidth(10)
 
-# Plot the training history
-plt.plot(history, label='training_loss')
-plt.plot(history_test, label='test_loss')
-plt.legend()
+ax1.set_title('Cost')
+ax1.plot(xline, history, label='training cost')
+ax1.plot(xline, history_test, label='test cost')
+ax2.set_xlabel('Iterations')
+ax1.grid()
+ax1.legend()
+
+ax2.set_title('Accuracy')
+ax2.set_xlabel('Iterations')
+ax2.plot(xline, accuracy, label= 'accuracy')
+ax2.plot(xline, test_accuracy, label= 'test accuracy')
+ax2.grid()
+ax2.legend()
+
 plt.show()
+
 
 
 
