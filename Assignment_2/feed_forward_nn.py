@@ -251,8 +251,8 @@ mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, 
 
 # Create neural network
 nn = NeuralNetwork(784, 1e-2, X_train, Y_train, X_test, Y_test)
-nn.create_layer([784, 128], 'relu')
-nn.create_layer([128,64], 'relu')
+nn.create_layer([784, 128], 'sigmoid')
+nn.create_layer([128,64], 'sigmoid')
 nn.create_layer([64, 10], 'softmax')
 nn.print_layer()
 
