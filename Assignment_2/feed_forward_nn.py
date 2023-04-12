@@ -130,14 +130,14 @@ class NeuralNetwork:
         
 
     def compare(self, arr1, arr2):
-        # Get the indices of the maximum values along axis 0 (rows)
+        # get maximum values along the "label-array" 
         max_indices_arr1 = np.argmax(arr1, axis=0)
         max_indices_arr2 = np.argmax(arr2, axis=0)
 
-        # Compare the indices and count the matches
+        # compare and see if the index of max matches hot encoded label
         matches = np.sum(max_indices_arr1 == max_indices_arr2)
 
-        # Calculate the percentage of correct matches
+        # percentage of correct matches
         percentage = (matches / arr1.shape[1]) * 100
 
         return percentage
