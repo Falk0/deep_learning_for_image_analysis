@@ -16,6 +16,7 @@ class NeuralNetwork:
         self.test_history = []
         self.accuracy = []
         self.test_accuracy = []
+        self.iterations = []
        
     #def cross_entropy(self, Y_pred, Y):
     def cross_entropy(self,X, Y):
@@ -27,7 +28,7 @@ class NeuralNetwork:
 
     def create_layer(self, nodes, activation):
         np.random.seed(42)
-        weights = np.random.rand(nodes[1], nodes[0]) *  0.01 # np.sqrt(1 / (nodes[0]))
+        weights = np.random.rand(nodes[1], nodes[0]) *  0.01 
         bias = np.random.rand(nodes[1], 1) * np.sqrt(1 / (nodes[0]))
         self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
         self.layersIO.append([None, None, None]) # [input, Z, A]
@@ -122,7 +123,7 @@ class NeuralNetwork:
             self.linear_backward(i, minibatch_Y)
 
 
-    def update_parameters_new(self):
+    def update_parameters(self):
         for i in range(len(self.layers)):
             self.layers[i][0] -= self.learningRate * self.layerGradients[i][1]
             self.layers[i][1] -= self.learningRate * self.layerGradients[i][2]
@@ -143,17 +144,22 @@ class NeuralNetwork:
 
 
     def train_model(self, mini_batches, epochs):
+        iter = 0
+        k = 200
         for y in range(epochs):
             print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
             for x in range(len(mini_batches)): 
                 self.model_forward(mini_batches[x][0].T)
                 self.model_backward(mini_batches[x][1].T)
-                self.update_parameters_new()
-
-            self.training_history.append(self.cross_entropy(X_train.T,Y_train.T))
-            self.test_history.append(self.cross_entropy(X_test.T,Y_test.T))
-            self.test_accuracy.append(nn.predict(X_test,Y_test))
-            self.accuracy.append(nn.predict(X_train,Y_train))
+                self.update_parameters()
+                if x % k == 0:
+                    self.training_history.append(self.cross_entropy(mini_batches[x][0].T, mini_batches[x][1].T))
+                    self.test_history.append(self.cross_entropy(X_test.T,Y_test.T))
+                    self.test_accuracy.append(nn.predict(X_train,Y_train))
+                    self.accuracy.append(nn.predict(mini_batches[x][0],mini_batches[x][1])) 
+                    iter += k
+                    self.iterations.append(iter)
+                    
             print(nn.predict(X_test,Y_test))
 
     def predict(self, data, labels):
@@ -172,7 +178,7 @@ class NeuralNetwork:
     
 
     def weights_as_image(self):
-        fig, ax = plt.subplots(2,5, dpi=200)   
+        fig, ax = plt.subplots(2,5)  
         for x in range(5):
             im1 = self.layers[0][0][x,:].reshape((28,28))
             im2 = self.layers[0][0][5+x,:].reshape((28,28))
@@ -257,20 +263,24 @@ print(nn.predict(shuffled_testdata,shuffled_testlabels))
 
 
 #Plot training cost and accuarcy history after training
-fig, (ax1, ax2) = plt.subplots(1, 2)
-fig.set_figwidth(10)
+fig1, (ax1, ax2) = plt.subplots(1, 2)
+fig1.set_figwidth(10)
 
 ax1.set_title('Cost')
-ax1.plot(nn.training_history, label='training cost')
-ax1.plot(nn.test_history, label='test cost')
+ax1.set_xlabel('Iterations')
+ax1.plot(nn.iterations, nn.training_history, label='training cost')
+ax1.plot(nn.iterations, nn.test_history, label='test cost')
 ax1.grid()
 ax1.legend()
 
 ax2.set_title('Accuracy')
 ax2.set_xlabel('Iterations')
-ax2.plot(nn.accuracy, label= 'accuracy')
-ax2.plot(nn.test_accuracy, label= 'test accuracy')
+ax2.plot(nn.iterations, nn.accuracy, label= 'accuracy')
+ax2.plot(nn.iterations, nn.test_accuracy, label= 'test accuracy')
 ax2.grid()
 ax2.legend()
 
 plt.show()
+
+
+nn.weights_as_image()
