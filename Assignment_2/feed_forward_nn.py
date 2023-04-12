@@ -13,18 +13,22 @@ class NeuralNetwork:
         self.layersIO = []
         self.layerGradients = []
         self.training_history = []
-        self.training_history_test = []
+        self.test_history = []
+        self.accuracy = []
+        self.test_accuracy = []
        
-
-    def cross_entropy(self, Y_pred, Y):
-        cost = -np.sum(Y * np.log(Y_pred + 1e-10))
+    #def cross_entropy(self, Y_pred, Y):
+    def cross_entropy(self,X, Y):
+        self.model_forward(X)
+        batch_size = Y.shape[1]
+        cost = -np.sum(Y * np.log(self.layersIO[-1][2] + 1e-10)) / batch_size
         return cost
 
 
     def create_layer(self, nodes, activation):
         np.random.seed(42)
-        weights = np.random.rand(nodes[1], nodes[0]) * np.sqrt(1 / (nodes[0]))
-        bias = np.random.rand(nodes[1], 1) * np.sqrt(2 / (nodes[0]))
+        weights = np.random.rand(nodes[1], nodes[0]) *  0.01 # np.sqrt(1 / (nodes[0]))
+        bias = np.random.rand(nodes[1], 1) * np.sqrt(1 / (nodes[0]))
         self.layers.append([weights, bias, activation]) #[weights, bias, activation function]
         self.layersIO.append([None, None, None]) # [input, Z, A]
         self.layerGradients.append([None, None, None, None]) #[dZ, dW, dB, dA]
@@ -58,8 +62,7 @@ class NeuralNetwork:
         elif self.layers[layer][2] == 'sigmoid':
             dA = self.sigmoid_backward(self.layersIO[layer][2])
             self.layerGradients[layer][3] = dA
-
-        
+       
 
     def linear_backward(self, layer, Y):
         batch_size = self.layersIO[layer][0].shape[1]
@@ -79,6 +82,7 @@ class NeuralNetwork:
        
             self.layerGradients[layer][0:3] = dZ, dW, dB
        
+       
     def softmax(self, Z):
         Z_max = np.max(Z, axis=0)
         Z_shifted = Z - Z_max
@@ -89,7 +93,6 @@ class NeuralNetwork:
     def sigmoid(self, Z):
         A = 1 / (1 + np.exp(-Z))
         return A
-
 
 
     def relu(self, Z):
@@ -104,6 +107,20 @@ class NeuralNetwork:
         return A * (1 - A)
     
         
+    def model_forward(self, minibatch_X): 
+         self.linear_forward(0, minibatch_X)
+         self.activation_forward(0)
+         for i in range(1,len(self.layers),1):
+            self.linear_forward(i, self.layersIO[i-1][2])
+            self.activation_forward(i)
+        
+        
+
+    def model_backward(self, minibatch_Y):
+         for i in range(len(self.layers)-1,-1, -1):
+            self.activation_backward(i, minibatch_Y)
+            self.linear_backward(i, minibatch_Y)
+
 
     def update_parameters_new(self):
         for i in range(len(self.layers)):
@@ -125,9 +142,25 @@ class NeuralNetwork:
         return percentage
 
 
-       
-     #Predict and calculate percentage correct
-    
+    def train_model(self, mini_batches, epochs):
+        for y in range(epochs):
+            print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
+            for x in range(len(mini_batches)): 
+                self.model_forward(mini_batches[x][0].T)
+                self.model_backward(mini_batches[x][1].T)
+                self.update_parameters_new()
+
+            self.training_history.append(self.cross_entropy(X_train.T,Y_train.T))
+            self.test_history.append(self.cross_entropy(X_test.T,Y_test.T))
+            self.test_accuracy.append(nn.predict(X_test,Y_test))
+            self.accuracy.append(nn.predict(X_train,Y_train))
+            print(nn.predict(X_test,Y_test))
+
+    def predict(self, data, labels):
+        self.model_forward(data.T)
+        percent = self.compare(self.layersIO[-1][2], labels.T)
+        return percent
+
 
     def print_layer(self):
         for i in range(len(self.layers)):
@@ -142,7 +175,7 @@ class NeuralNetwork:
         fig, ax = plt.subplots(2,5, dpi=200)   
         for x in range(5):
             im1 = self.layers[0][0][x,:].reshape((28,28))
-            im2 = self.weights1[5+x,:].reshape((28,28))
+            im2 = self.layers[0][0][5+x,:].reshape((28,28))
             ax[0,x].imshow(im1)
             ax[0,x].set_xticks([]) 
             ax[0,x].set_yticks([])
@@ -151,7 +184,6 @@ class NeuralNetwork:
             ax[1,x].set_yticks([]) 
         plt.show()
     
-
 
 def shuffle_data_and_labels(data, labels):
     # Get the number of samples
@@ -213,80 +245,32 @@ mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, 
 
 # Create neural network
 nn = NeuralNetwork(784, 1e-2, X_train, Y_train, X_test, Y_test)
-
 nn.create_layer([784, 128], 'relu')
 nn.create_layer([128,64], 'relu')
-nn.create_layer([64,40], 'relu')
-nn.create_layer([40, 10], 'softmax')
-
+nn.create_layer([64, 10], 'softmax')
 nn.print_layer()
 
-epochs = 60
-
-for y in range(epochs):
-    print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
-    for x in range(len(mini_batches)):
-        nn.linear_forward(0, mini_batches[x][0].T)
-        nn.activation_forward(0)
-        nn.linear_forward(1, nn.layersIO[0][2])
-        nn.activation_forward(1)
-        nn.linear_forward(2, nn.layersIO[1][2])
-        nn.activation_forward(2)
-        nn.linear_forward(3, nn.layersIO[2][2])
-        nn.activation_forward(3)
-
-        nn.activation_backward(3, mini_batches[x][1].T)
-        nn.linear_backward(3, mini_batches[x][1].T)
-        nn.activation_backward(2, mini_batches[x][1].T)
-        nn.linear_backward(2, mini_batches[x][1].T)
-        nn.activation_backward(1, mini_batches[x][1].T)
-        nn.linear_backward(1, mini_batches[x][1].T)
-        nn.activation_backward(0, mini_batches[x][1].T)
-        nn.linear_backward(0, mini_batches[x][1].T)
-            
-        nn.update_parameters_new()
+#Train the network and print test accuarcy while training
+epochs = 50
+nn.train_model(mini_batches,epochs)   
+print(nn.predict(shuffled_testdata,shuffled_testlabels))
 
 
-nn.linear_forward(0, shuffled_testdata.T)
-nn.activation_forward(0)
-nn.linear_forward(1, nn.layersIO[0][2])
-nn.activation_forward(1)
-nn.linear_forward(2, nn.layersIO[1][2])
-nn.activation_forward(2)
-nn.linear_forward(3, nn.layersIO[2][2])
-nn.activation_forward(3)
+#Plot training cost and accuarcy history after training
+fig, (ax1, ax2) = plt.subplots(1, 2)
+fig.set_figwidth(10)
 
+ax1.set_title('Cost')
+ax1.plot(nn.training_history, label='training cost')
+ax1.plot(nn.test_history, label='test cost')
+ax1.grid()
+ax1.legend()
 
-#TODO make sure this can be looped in a function
+ax2.set_title('Accuracy')
+ax2.set_xlabel('Iterations')
+ax2.plot(nn.accuracy, label= 'accuracy')
+ax2.plot(nn.test_accuracy, label= 'test accuracy')
+ax2.grid()
+ax2.legend()
 
-percent = nn.compare(nn.layersIO[3][2], shuffled_testlabels.T)
-print(percent)
-
-
-'''
-epochs = 1
-history = []
-history_test = []
-
-# Train the network for number of epochs
-for y in range(epochs):
-    print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
-    for x in range(len(mini_batches)):
-        nn.train_linear_model(mini_batches[x][0].T, mini_batches[x][1].T, mini_batches_test[x][0].T, mini_batches_test[x][1].T,   1)
-        #hist, hist_test = nn.history()
-        #history.append(np.mean(hist))
-        #history_test.append(np.mean(hist_test))
-
-
-# plot the weights as images
-nn.weights_as_image()
-
-#hist, hist_test = nn.history()
-
-# Plot the training history
-#plt.plot(history, label='training_loss')
-#plt.plot(history_test, label='test_loss')
-#plt.legend()
-#plt.show()
-
-print(nn.predict(shuffled_testdata.T, shuffled_testlabels.T))'''
+plt.show()
