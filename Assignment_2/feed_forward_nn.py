@@ -67,8 +67,8 @@ class NeuralNetwork:
 
         # Calculate gradients
         self.dZ1 = (-Y + self.A1)          # 10 m
-        self.dW1 = (1/samples) * np.dot(self.dZ1, X.T)  # 10, 784  
-        self.dB1 = (1/samples) * np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
+        self.dW1 =  np.dot(self.dZ1, X.T)  # 10, 784  
+        self.dB1 =  np.reshape(np.sum(self.dZ1,1),(10,1)) # 10, 1
 
         
     #Update the weight and bias with the pre-calciulated gradients
@@ -192,7 +192,7 @@ mini_batches = create_mini_batches(shuffled_data, shuffled_labels, number_of_bat
 
 
 # Create neural network
-nn = NeuralNetwork(784, 1e-2, 1)
+nn = NeuralNetwork(784, 1e-4, 1)
 nn.initiliaze_parameters()
 
 
