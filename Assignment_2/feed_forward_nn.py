@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import load_mnist as lm
 import matplotlib.pyplot as plt
+import time
 
 
 class NeuralNetwork:
@@ -251,16 +252,17 @@ mini_batches_test = create_mini_batches(shuffled_testdata, shuffled_testlabels, 
 
 # Create neural network
 nn = NeuralNetwork(784, 1e-2, X_train, Y_train, X_test, Y_test)
-nn.create_layer([784, 128], 'sigmoid')
-nn.create_layer([128,64], 'sigmoid')
+nn.create_layer([784, 128], 'relu')
+nn.create_layer([128,64], 'relu')
 nn.create_layer([64, 10], 'softmax')
 nn.print_layer()
 
 #Train the network and print test accuarcy while training
 epochs = 50
+start_time = time.time()
 nn.train_model(mini_batches,epochs)   
 print(nn.predict(shuffled_testdata,shuffled_testlabels))
-
+end_time = time.time()
 
 #Plot training cost and accuarcy history after training
 fig1, (ax1, ax2) = plt.subplots(1, 2)
@@ -284,3 +286,9 @@ plt.show()
 
 
 nn.weights_as_image()
+
+
+
+execution_time = end_time - start_time
+
+print("Execution time:", execution_time, "seconds")
