@@ -30,8 +30,10 @@ def load_mnist():
             letter[label] = 1
             train_labels.append(letter)                  
             
-    X_train= np.array(train_images).reshape(-1,784)/255.0
+    #X_train= np.array(train_images).reshape(-1,784)/255.0
+    X_train= np.array(train_images)/255.0
     Y_train= np.array(train_labels)
-    X_test= np.array(test_images).reshape(-1,784)/255.0
+    #X_test= np.array(test_images).reshape(-1,784)/255.0
+    X_test= np.array(test_images)/255.0
     Y_test= np.array(test_labels)
     return X_train, Y_train, X_test, Y_test

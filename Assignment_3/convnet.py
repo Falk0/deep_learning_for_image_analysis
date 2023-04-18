@@ -13,36 +13,38 @@ import time
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        #U1 = 200 # number of hidden units
-        #U2 = 100
-        #U3 = 60
-        #U4 = 30
-
-        U1 = 128 # number of hidden units
-        U2 = 64
-
-
-        self.W1 = nn.Parameter(0.1 * torch.randn(784, U1))
+        U1 = 8 # number of hidden units
+        U2 = 16
+        U3 = 32
+        U3flat = 1568
+        U4 = 200
+     
+        self.W1 = nn.Parameter(0.1 * torch.randn(U1, 1, 3, 3))
         self.b1 = nn.Parameter(torch.ones(U1)/10)
-        self.W2 = nn.Parameter(0.1 * torch.randn(U1, U2))
+
+        self.W2 = nn.Parameter(0.1 * torch.randn(U2, U1, 3, 3))
         self.b2 = nn.Parameter(torch.ones(U2)/10)
-        #self.W3 = nn.Parameter(0.1 * torch.randn(U2, U3))
-        #self.b3 = nn.Parameter(torch.ones(U3)/10)
-        #self.W4 = nn.Parameter(0.1 * torch.randn(U3, U4))
-        #self.b4 = nn.Parameter(torch.ones(U4)/10)
-        #self.W5 = nn.Parameter(0.1 * torch.randn(U4, 10))
-        #self.b5 = nn.Parameter(torch.ones(10)/10)
-        self.W3 = nn.Parameter(0.1 * torch.randn(U2, 10))
-        self.b3 = nn.Parameter(torch.ones(10)/10)
+
+        self.W3 = nn.Parameter(0.1 * torch.randn(U3, U2, 3, 3))
+        self.b3 = nn.Parameter(torch.ones(U3)/10)
+
+        self.W4 = nn.Parameter(0.1 * torch.randn(U3flat, U4))
+        self.b4 = nn.Parameter(torch.ones(U4)/10)
+        self.W5 = nn.Parameter(0.1 * torch.randn(U4, 10))
+        self.b5 = nn.Parameter(torch.ones(10)/10)
+
 
 
     def forward(self, X):
-        Q1 = F.relu(X.mm(self.W1) + self.b1)
-        Q2 = F.relu(Q1.mm(self.W2) + self.b2)
-        Q3 = F.relu(Q2.mm(self.W3) + self.b3)
-        #Q4 = F.relu(Q3.mm(self.W4) + self.b4)
-        #Z = Q4.mm(self.W5) + self.b5
-        Z = Q2.mm(self.W3) + self.b3
+        Q1 = F.relu(F.conv2d(X, self.W1, bias=self.b1,stride=1, padding=1))
+        M1 = F.max_pool2d(Q1, kernel_size=2, stride=2)
+        Q2 = F.relu(F.conv2d(M1, self.W2, bias=self.b2,stride=1, padding=1))
+        M2 = F.max_pool2d(Q2, kernel_size=2, stride=2)
+        Q3 = F.relu(F.conv2d(M2, self.W3, bias=self.b3,stride=1, padding=1))
+        
+        Q3flat = Q3.view(-1, 1568)
+        Q4 = F.relu(Q3flat.mm(self.W4) + self.b4)
+        Z = Q4.mm(self.W5) + self.b5
         return Z
     
 def crossentropy(G, Y):
@@ -94,8 +96,8 @@ def create_mini_batches(data, labels, num_batches):
     return mini_batches
 
 
-#device = torch.device("mps")
-device = torch.device("cpu")
+device = torch.device("mps")
+#device = torch.device("cpu")
 
 X_train, Y_train, X_test, Y_test = lm.load_mnist()
 
@@ -110,7 +112,7 @@ mini_batches = create_mini_batches(train_X, train_Y, number_of_batches)
 
 test_X = torch.tensor(test_X, dtype=torch.float)
 test_Y = torch.tensor(test_Y, dtype=torch.float)
-test_X = test_X.to(device)
+test_X = test_X.to(device).unsqueeze(1)
 test_Y = test_Y.to(device)
 
 
@@ -140,7 +142,7 @@ iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
     for x in range(len(mini_batches)):
-        minibatch_X = torch.tensor(mini_batches[x][0], dtype=torch.float)
+        minibatch_X = torch.tensor(mini_batches[x][0], dtype=torch.float).unsqueeze(1)
         minibatch_Y = torch.tensor(mini_batches[x][1], dtype=torch.float)
         minibatch_X = minibatch_X.to(device)
         minibatch_Y = minibatch_Y.to(device)
