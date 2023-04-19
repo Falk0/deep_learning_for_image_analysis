@@ -107,7 +107,7 @@ train_X, train_Y = shuffle_data_and_labels(X_train, Y_train)
 test_X, test_Y = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-number_of_batches = 2000
+number_of_batches = 1000
 mini_batches = create_mini_batches(train_X, train_Y, number_of_batches)
 
 test_X = torch.tensor(test_X, dtype=torch.float)
@@ -134,10 +134,10 @@ net.to(device)
 learningrate = 0.003
 optimizer = optim.SGD(net.parameters(), lr=learningrate)
 
-epochs = 50
+epochs = 10
 
 start_time = time.time()
-k = 200
+k = 100
 iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
@@ -155,9 +155,10 @@ for y in range(epochs):
         if x % k == 0:
             train_accuracy.append(accuracy(X_forward, minibatch_Y).item())
             train_crossentropy.append(loss.item())
-            test_cost = F.cross_entropy(X_forward, minibatch_Y)
-            test_crossentropy.append(test_cost.item())
+            
             X_forward = net(test_X)
+            test_cost = F.cross_entropy(X_forward, test_Y)
+            test_crossentropy.append(test_cost.item())
             test_accuracy.append(accuracy(X_forward, test_Y).item())
             iter += k
             test_iter.append(iter)
@@ -189,90 +190,3 @@ ax2.legend()
 plt.show()
 
 
-
-
-
-'''
-# perform multiple training steps
-total_iterations = 10000 # total number of iterations
-t = 0 # current iteration
-done = False
-while not done:
-    for (batch_X, batch_Y) in trainloader:
-
-        
-        # move batch to the GPU if needed
-        batch_X, batch_Y = batch_X.to(device), batch_Y.to(device)
-
-        # zero the parameter gradients
-        optimizer.zero_grad()
-
-        # forward pass
-        batch_G = net(batch_X)
-        # Calculate loss equation 10 
-        loss = F.cross_entropy(batch_G, batch_Y)
-
-        # backpropagation
-        #Calculate gradient of the equation 10
-        loss.backward()
-        
-        # perform gradient descent step
-        #Take a small step in negative direction of gradient calculated above 
-        optimizer.step()
-        
-        # don't bother too much about the following lines!
-        with torch.no_grad():
-            # evaluate the performance on the training data at every 10th iteration
-            if t % 10 == 0:
-                train_crossentropy.append(loss.item())
-                train_accuracy.append(accuracy(batch_G, batch_Y).item())
-                train_iter.append(t)
-                
-            # evaluate the performance on the test data at every 100th iteration
-            if t % 100 == 0:
-                # move test data to the GPU if needed
-                X, Y = test_X.to(device), test_Y.to(device)
-
-                # compute predictions for the test data
-                G = net(X)
-                test_crossentropy.append(crossentropy(G, Y).item())
-                test_accuracy.append(accuracy(G, Y).item())
-                test_iter.append(t)
-
-                # print the iteration number and the accuracy of the predictions
-                print(f"Step {t:5d}: train accuracy {100 * train_accuracy[-1]:6.2f}% " \
-                      f"train cross-entropy {train_crossentropy[-1]:5.2f}  " \
-                      f"test accuracy {100 * test_accuracy[-1]:6.2f}% " \
-                      f"test cross-entropy {test_crossentropy[-1]:5.2f}")
-            
-        # stop the training after the specified number of iterations
-        t += 1
-        if t > total_iterations:
-            done = True
-            break
-
-'''
-
-'''
-# plot the cross-entropy
-plt.plot(train_iter, train_crossentropy, 'b-', label='Training data (mini-batch)')
-plt.plot(test_iter, test_crossentropy, 'r-', label='Test data')
-plt.xlabel('Iteration')
-plt.ylabel('Cross-entropy')
-plt.ylim([0, min(test_crossentropy) * 3])
-plt.title('Cross-entropy')
-plt.grid(True)
-plt.legend(loc='best')
-plt.show()
-
-# plot the accuracy
-plt.plot(train_iter, train_accuracy, 'b-', label='Training data (mini-batch)')
-plt.plot(test_iter, test_accuracy, 'r-', label='Test data')
-plt.xlabel('Iteration')
-plt.ylabel('Prediction accuracy')
-plt.ylim([max(1 - (1 - test_accuracy[-1]) * 2, 0), 1])
-plt.title('Prediction accuracy')
-plt.grid(True)
-plt.legend(loc='best')
-plt.show()
-'''
