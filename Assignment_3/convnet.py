@@ -107,7 +107,7 @@ train_X, train_Y = shuffle_data_and_labels(X_train, Y_train)
 test_X, test_Y = shuffle_data_and_labels(X_test, Y_test)
 
 # Create mini-batches
-number_of_batches = 1000
+number_of_batches = 600
 mini_batches = create_mini_batches(train_X, train_Y, number_of_batches)
 
 test_X = torch.tensor(test_X, dtype=torch.float)

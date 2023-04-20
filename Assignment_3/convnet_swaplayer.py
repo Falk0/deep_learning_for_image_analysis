@@ -7,8 +7,8 @@ import pandas as pd
 import load_mnist as lm
 import matplotlib.pyplot as plt
 import time
-from sklearn.metrics import confusion_matrix
-import seaborn as sn
+
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -21,50 +21,39 @@ class Net(nn.Module):
      
         self.W1 = nn.Parameter(0.1 * torch.randn(U1, 1, 3, 3))
         self.b1 = nn.Parameter(torch.ones(U1)/10)
-        #self.bn1 = nn.BatchNorm2d(U1)
 
         self.W2 = nn.Parameter(0.1 * torch.randn(U2, U1, 3, 3))
         self.b2 = nn.Parameter(torch.ones(U2)/10)
-        #self.bn2 = nn.BatchNorm2d(U2) 
 
         self.W3 = nn.Parameter(0.1 * torch.randn(U3, U2, 3, 3))
         self.b3 = nn.Parameter(torch.ones(U3)/10)
-        #self.bn3 = nn.BatchNorm1d(U3flat)
-
 
         self.W4 = nn.Parameter(0.1 * torch.randn(U3flat, U4))
         self.b4 = nn.Parameter(torch.ones(U4)/10)
-        #self.bn4 = nn.BatchNorm1d(U4)
-        #self.dropout2 = nn.Dropout(p=0.25)
-        
         self.W5 = nn.Parameter(0.1 * torch.randn(U4, 10))
         self.b5 = nn.Parameter(torch.ones(10)/10)
 
-#best 99.07% with BatchNormalization, instruction architecture, lr = 0.003
-#best 99.00% with DropOut(p=0.3) in fc layers, instruction architecture, lr = 0.003
+
 
     def forward(self, X):
-        Q1 = F.relu(F.conv2d(X, self.W1, bias=self.b1,stride=1, padding=1))
-        M1 = F.max_pool2d(Q1, kernel_size=2, stride=2)
-        Q2 = F.relu(F.conv2d(M1, self.W2, bias=self.b2,stride=1, padding=1))
-        M2 = F.max_pool2d(Q2, kernel_size=2, stride=2)
-        Q3 = F.relu(F.conv2d(M2, self.W3, bias=self.b3,stride=1, padding=1))
+        M1 = F.max_pool2d(X, kernel_size=2, stride=2)
+        Q1 = F.relu(F.conv2d(M1, self.W1, bias=self.b1,stride=1, padding=1))
+       
+        M2 = F.max_pool2d(Q1, kernel_size=2, stride=2)
+        Q2 = F.relu(F.conv2d(M2, self.W2, bias=self.b2,stride=1, padding=1))
+ 
+        Q3 = F.relu(F.conv2d(Q2, self.W3, bias=self.b3,stride=1, padding=1))
         
         Q3flat = Q3.view(-1, 1568)
         Q4 = F.relu(Q3flat.mm(self.W4) + self.b4)
         Z = Q4.mm(self.W5) + self.b5
         return Z
-
-
+    
 def crossentropy(G, Y):
     return -(Y * G.log()).sum(dim = 1).mean()
 
-
 def accuracy(G, Y):
     return (G.argmax(dim=1) == Y.argmax(dim=1)).float().mean()
-
-def predict(G):
-    return G.argmax(dim=1).float()
 
 
 def shuffle_data_and_labels(data, labels):
@@ -109,10 +98,6 @@ def create_mini_batches(data, labels, num_batches):
     return mini_batches
 
 
-def gamma_update(t, gamma_max, gamma_min):
-    new_gamma = gamma_min + (gamma_max-gamma_min)*np.exp(-t/2000)
-    return new_gamma
-
 device = torch.device("mps")
 #device = torch.device("cpu")
 
@@ -149,9 +134,9 @@ net.to(device)
 
 # define the optimization algorithm
 learningrate = 0.003
-optimizer = optim.Adam(net.parameters(), lr=learningrate)
+optimizer = optim.SGD(net.parameters(), lr=learningrate)
 
-epochs = 1
+epochs = 10
 
 start_time = time.time()
 k = 100
@@ -159,12 +144,6 @@ iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
     for x in range(len(mini_batches)):
-        
-        #update learning rate       
-        learningrate = gamma_update(iter, 0.003, 0.0001)
-        for p in optimizer.param_groups:
-            p['lr'] = learningrate
-
         minibatch_X = torch.tensor(mini_batches[x][0], dtype=torch.float).unsqueeze(1)
         minibatch_Y = torch.tensor(mini_batches[x][1], dtype=torch.float)
         minibatch_X = minibatch_X.to(device)
@@ -179,17 +158,13 @@ for y in range(epochs):
             train_accuracy.append(accuracy(X_forward, minibatch_Y).item())
             train_crossentropy.append(loss.item())
             
-            net.eval()
-
             X_forward = net(test_X)
             test_cost = F.cross_entropy(X_forward, test_Y)
             test_crossentropy.append(test_cost.item())
             test_accuracy.append(accuracy(X_forward, test_Y).item())
             iter += k
             test_iter.append(iter)
-
-            net.train()
-    net.eval()      
+            
     X_forward = net(test_X)
     print(accuracy(X_forward, test_Y))
 end_time = time.time()
@@ -216,20 +191,4 @@ ax2.legend()
 
 plt.show()
 
-Yhat = X_forward
-Yhat = Yhat.cpu()
-test_Y = test_Y.cpu()
-Yhat_labels = Yhat.argmax(dim=1)
-test_Y_labels = test_Y.argmax(dim=1)
-cf_matrix = confusion_matrix(test_Y_labels, Yhat_labels)
 
-classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index = [i for i in classes],
-                     columns = [i for i in classes])
-plt.figure(figsize = (12,7))
-sn.heatmap(df_cm, annot=True)
-plt.title("Confusion Matrix")
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.show()
-# inspiration https://christianbernecker.medium.com/how-to-create-a-confusion-matrix-in-pytorch-38d06a7f04b7
