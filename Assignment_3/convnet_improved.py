@@ -10,6 +10,7 @@ import time
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -57,6 +58,8 @@ class Net(nn.Module):
 
 
 def crossentropy(G, Y):
+    print(G.shape)
+    print(Y.shape)
     return -(Y * G.log()).sum(dim = 1).mean()
 
 
@@ -151,7 +154,7 @@ net.to(device)
 learningrate = 0.003
 optimizer = optim.Adam(net.parameters(), lr=learningrate)
 
-epochs = 1
+epochs = 10
 
 start_time = time.time()
 k = 100
@@ -172,6 +175,7 @@ for y in range(epochs):
         
         optimizer.zero_grad()
         X_forward = net(minibatch_X)
+        print(X_forward.shape)
         loss = F.cross_entropy(X_forward, minibatch_Y)
         loss.backward()
         optimizer.step()
