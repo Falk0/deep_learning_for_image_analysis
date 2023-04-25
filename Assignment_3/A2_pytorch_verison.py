@@ -17,23 +17,21 @@ class Net(nn.Module):
         U2 = 64
 
 
-        self.W1 = nn.Parameter(0.1 * torch.randn(784, U1))
-        self.b1 = nn.Parameter(torch.ones(U1)/10)
-        self.W2 = nn.Parameter(0.1 * torch.randn(U1, U2))
-        self.b2 = nn.Parameter(torch.ones(U2)/10)
-        self.W3 = nn.Parameter(0.1 * torch.randn(U2, 10))
+        self.W1 = nn.Parameter(0.01 * torch.randn(784, U1))
+        self.b1 = nn.Parameter(torch.ones(U1)/U1)
+        self.W2 = nn.Parameter(0.01 * torch.randn(U1, U2))
+        self.b2 = nn.Parameter(torch.ones(U2)/U2)
+        self.W3 = nn.Parameter(0.01 * torch.randn(U2, 10))
         self.b3 = nn.Parameter(torch.ones(10)/10)
 
 
     def forward(self, X):
+        X = X.view(X.size(0), -1)
         Q1 = F.relu(X.mm(self.W1) + self.b1)
         Q2 = F.relu(Q1.mm(self.W2) + self.b2)
-        Q3 = F.relu(Q2.mm(self.W3) + self.b3)
         Z = Q2.mm(self.W3) + self.b3
         return Z
     
-def crossentropy(G, Y):
-    return -(Y * G.log()).sum(dim = 1).mean()
 
 def accuracy(G, Y):
     return (G.argmax(dim=1) == Y.argmax(dim=1)).float().mean()
@@ -100,6 +98,10 @@ test_Y = torch.tensor(test_Y, dtype=torch.float)
 test_X = test_X.to(device)
 test_Y = test_Y.to(device)
 
+train_X = torch.tensor(train_X, dtype=torch.float)
+train_Y = torch.tensor(train_Y, dtype=torch.float)
+train_X = train_X.to(device).unsqueeze(1)
+train_Y = train_Y.to(device)
 
 
 # initialize the test and training error statistics
@@ -112,6 +114,9 @@ train_iter = []
 
 # initialize the neural network and move it to the GPU
 net = Net()
+total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+print("Total number of learnable weights:", total_params)
+
 net = net.to(torch.float)
 net.to(device)
 
@@ -120,9 +125,10 @@ learningrate = 0.01
 optimizer = optim.SGD(net.parameters(), lr=learningrate)
 
 epochs = 50
+subset_size = 6000
 
 start_time = time.time()
-k = 200
+k = 1000
 iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
@@ -137,12 +143,18 @@ for y in range(epochs):
         loss = F.cross_entropy(X_forward, minibatch_Y)
         loss.backward()
         optimizer.step()
-        if x % k == 0:
-            train_accuracy.append(accuracy(X_forward, minibatch_Y).item())
+        if (x + y * number_of_batches) % k == 0:
+            train_indices = np.random.choice(train_X.shape[0], subset_size, replace=False)
+            train_X_subset = train_X[train_indices]
+            train_Y_subset = train_Y[train_indices]
+
+            X_forward = net(train_X_subset)
+            train_accuracy.append(accuracy(X_forward, train_Y_subset).item())
             train_crossentropy.append(loss.item())
-            test_cost = F.cross_entropy(X_forward, minibatch_Y)
-            test_crossentropy.append(test_cost.item())
+            
             X_forward = net(test_X)
+            test_cost = F.cross_entropy(X_forward, test_Y)
+            test_crossentropy.append(test_cost.item())
             test_accuracy.append(accuracy(X_forward, test_Y).item())
             iter += k
             test_iter.append(iter)
@@ -154,7 +166,7 @@ end_time = time.time()
 execution_time = end_time - start_time
 print("Execution time:", execution_time, "seconds")
 
-fig1, (ax1, ax2) = plt.subplots(1, 2)
+fig1, (ax1, ax2) = plt.subplots(1, 2, dpi=200)
 fig1.set_figwidth(10)
 
 ax1.set_title('Cost')
@@ -170,9 +182,8 @@ ax2.plot(test_iter, train_accuracy, label= 'accuracy')
 ax2.plot(test_iter, test_accuracy, label= 'test accuracy')
 ax2.grid()
 ax2.legend()
-
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/A2_torchversion.png', dpi = 200)
 plt.show()
-
 
 
 

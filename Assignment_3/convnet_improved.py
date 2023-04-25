@@ -36,7 +36,7 @@ class Net(nn.Module):
         self.W4 = nn.Parameter(0.1 * torch.randn(U3flat, U4))
         self.b4 = nn.Parameter(torch.ones(U4)/10)
         #self.bn4 = nn.BatchNorm1d(U4)
-        #self.dropout2 = nn.Dropout(p=0.25)
+        self.dropout = nn.Dropout(p=0.25)
         
         self.W5 = nn.Parameter(0.1 * torch.randn(U4, 10))
         self.b5 = nn.Parameter(torch.ones(10)/10)
@@ -53,13 +53,12 @@ class Net(nn.Module):
         
         Q3flat = Q3.view(-1, 1568)
         Q4 = F.relu(Q3flat.mm(self.W4) + self.b4)
-        Z = Q4.mm(self.W5) + self.b5
+        Q4dropout = self.dropout(Q4)
+        Z = Q4dropout.mm(self.W5) + self.b5
         return Z
 
 
 def crossentropy(G, Y):
-    print(G.shape)
-    print(Y.shape)
     return -(Y * G.log()).sum(dim = 1).mean()
 
 
@@ -135,6 +134,10 @@ test_Y = torch.tensor(test_Y, dtype=torch.float)
 test_X = test_X.to(device).unsqueeze(1)
 test_Y = test_Y.to(device)
 
+train_X = torch.tensor(train_X, dtype=torch.float)
+train_Y = torch.tensor(train_Y, dtype=torch.float)
+train_X = train_X.to(device).unsqueeze(1)
+train_Y = train_Y.to(device)
 
 
 # initialize the test and training error statistics
@@ -155,6 +158,7 @@ learningrate = 0.003
 optimizer = optim.Adam(net.parameters(), lr=learningrate)
 
 epochs = 10
+subset_size = 6000
 
 start_time = time.time()
 k = 100
@@ -175,16 +179,18 @@ for y in range(epochs):
         
         optimizer.zero_grad()
         X_forward = net(minibatch_X)
-        print(X_forward.shape)
         loss = F.cross_entropy(X_forward, minibatch_Y)
         loss.backward()
         optimizer.step()
-        if x % k == 0:
-            train_accuracy.append(accuracy(X_forward, minibatch_Y).item())
+        if (x + y * number_of_batches) % k == 0:
+            train_indices = np.random.choice(train_X.shape[0], subset_size, replace=False)
+            train_X_subset = train_X[train_indices]
+            train_Y_subset = train_Y[train_indices]
+            net.eval() 
+            X_forward = net(train_X_subset)
+            train_accuracy.append(accuracy(X_forward, train_Y_subset).item())
             train_crossentropy.append(loss.item())
             
-            net.eval()
-
             X_forward = net(test_X)
             test_cost = F.cross_entropy(X_forward, test_Y)
             test_crossentropy.append(test_cost.item())
@@ -217,8 +223,9 @@ ax2.plot(test_iter, train_accuracy, label= 'accuracy')
 ax2.plot(test_iter, test_accuracy, label= 'test accuracy')
 ax2.grid()
 ax2.legend()
-
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/improved_torch4.png', dpi = 200)
 plt.show()
+
 
 Yhat = X_forward
 Yhat = Yhat.cpu()
@@ -235,5 +242,7 @@ sn.heatmap(df_cm, annot=True)
 plt.title("Confusion Matrix")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/improved_torch4_CM.png', dpi = 200)
 plt.show()
+
 # inspiration https://christianbernecker.medium.com/how-to-create-a-confusion-matrix-in-pytorch-38d06a7f04b7

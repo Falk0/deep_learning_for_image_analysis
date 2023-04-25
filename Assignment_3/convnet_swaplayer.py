@@ -17,7 +17,7 @@ class Net(nn.Module):
         U2 = 16
         U3 = 32
         U3flat = 1568
-        U4 = 200
+        U4 = 10
      
         self.W1 = nn.Parameter(0.1 * torch.randn(U1, 1, 3, 3))
         self.b1 = nn.Parameter(torch.ones(U1)/10)
@@ -112,6 +112,13 @@ test_X, test_Y = shuffle_data_and_labels(X_test, Y_test)
 number_of_batches = 600
 mini_batches = create_mini_batches(train_X, train_Y, number_of_batches)
 
+
+train_X = torch.tensor(train_X, dtype=torch.float)
+train_Y = torch.tensor(train_Y, dtype=torch.float)
+train_X = train_X.to(device).unsqueeze(1)
+train_Y = train_Y.to(device)
+
+
 test_X = torch.tensor(test_X, dtype=torch.float)
 test_Y = torch.tensor(test_Y, dtype=torch.float)
 test_X = test_X.to(device).unsqueeze(1)
@@ -136,10 +143,11 @@ net.to(device)
 learningrate = 0.003
 optimizer = optim.SGD(net.parameters(), lr=learningrate)
 
-epochs = 10
+epochs = 60
+subset_size = 6000
 
 start_time = time.time()
-k = 100
+k = 200
 iter = 0
 for y in range(epochs):
     print(str(y+1) + ' out of ' + str(epochs) + ' epochs')
@@ -154,8 +162,13 @@ for y in range(epochs):
         loss = F.cross_entropy(X_forward, minibatch_Y)
         loss.backward()
         optimizer.step()
-        if x % k == 0:
-            train_accuracy.append(accuracy(X_forward, minibatch_Y).item())
+        if (x + y * number_of_batches) % k == 0:
+            train_indices = np.random.choice(train_X.shape[0], subset_size, replace=False)
+            train_X_subset = train_X[train_indices]
+            train_Y_subset = train_Y[train_indices]
+
+            X_forward = net(train_X_subset)
+            train_accuracy.append(accuracy(X_forward, train_Y_subset).item())
             train_crossentropy.append(loss.item())
             
             X_forward = net(test_X)
@@ -188,7 +201,7 @@ ax2.plot(test_iter, train_accuracy, label= 'accuracy')
 ax2.plot(test_iter, test_accuracy, label= 'test accuracy')
 ax2.grid()
 ax2.legend()
-
+plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/convnet_swapped.png', dpi = 200)
 plt.show()
 
 
