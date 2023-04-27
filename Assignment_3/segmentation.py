@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 from sklearn.model_selection import train_test_split
+from scipy import ndimage
 
 import imageio
 import glob
@@ -25,21 +26,30 @@ def load_images(folder_path):
             image_path = os.path.join(folder_path, filename)
             try:
                image = imageio.imread(image_path)
+               #image_rotated90 = ndimage.rotate(image, -90, reshape=False, mode='reflect')
+               #image_rotated180 = ndimage.rotate(image, 180, reshape=False, mode='reflect')
                images.append(image)
+               #images.append(image_rotated90)
+               #images.append(image_rotated180)
             except Exception as e:
                 print(f"Error loading image {image_path}: {e}")
             
     return np.array(images)/255.0
 
-def load_labels(folder_path):   
+
+def load_labels(folder_path):       
     images = []
     filenames = sorted(os.listdir(folder_path))
     for filename in filenames:
         if filename.endswith('.png') and filename.startswith('label') :
             image_path = os.path.join(folder_path, filename)
             try:
-                image = imageio.imread(image_path)
-                images.append(image)
+               image = imageio.imread(image_path)
+               #image_rotated90 = ndimage.rotate(image, -90, reshape=False, mode='reflect')
+               #image_rotated180 = ndimage.rotate(image, 180, reshape=False, mode='reflect')
+               images.append(image)
+               #images.append(image_rotated90)
+               #images.append(image_rotated180)
             except Exception as e:
                 print(f"Error loading image {image_path}: {e}")
     return np.array(images)/255.0
@@ -103,6 +113,7 @@ def dice_coefficient(y_true, y_pred, smooth=1e-6):
     dice = (2 * intersection + smooth) / (union + smooth)
     return dice
 
+
 def dice_loss(y_true, y_pred, smooth=1e-6):
     return 1 - dice_coefficient(y_true, y_pred, smooth)
 
@@ -136,6 +147,13 @@ def one_hot_encode(labels, num_classes=2):
 
     return one_hot
 
+
+def gamma_update(t, gamma_max, gamma_min):
+    new_gamma = gamma_min + (gamma_max-gamma_min)*np.exp(-t/100)
+    return new_gamma
+
+
+
 device = torch.device("cpu")
 
 
@@ -148,10 +166,12 @@ test_Y = load_labels(test_folder_path)
 train_X = train_X[:, :, :, :2]
 test_X = test_X[:, :, :, :2]
 
-
+print(train_X.shape)
 # Split the training set into a new training set and a validation set (80% training, 20% validation)
-train_X, val_X = train_test_split(train_X, test_size=0.2, random_state=42)
-train_Y, val_Y = train_test_split(train_Y, test_size=0.2, random_state=42)
+train_X, val_X = train_test_split(train_X, test_size=0.2, random_state=32)
+train_Y, val_Y = train_test_split(train_Y, test_size=0.2, random_state=32)
+print(train_X.shape)
+print(val_X.shape)
 
 print(f"Loaded {len(train_X)} training images, and {len(test_X)} test images from the dataset.")
 print(f"Loaded {len(train_Y)} training labels, and {len(test_Y)} test labels from the dataset.")
@@ -179,40 +199,50 @@ net = net.to(torch.float)
 # define the optimization algorithm
 learningrate = 0.003
 optimizer = optim.Adam(net.parameters(), lr=learningrate)
-
-epochs = 150
+epochs = 100
 
 training_loss = []
-test_loss = []
+val_loss = []
 
 for y in range(epochs):
     print(y)
+    
+    #learningrate = gamma_update(y, 0.003, 0.0001)
+    #for p in optimizer.param_groups:
+    #     p['lr'] = learningrate
+
     optimizer.zero_grad()
     X_forward = net(train_X)
+    
     loss = crossentropy(X_forward, train_Y)
+
     training_loss.append(loss.detach().numpy())
+
     loss.backward()
     optimizer.step()
-    X_forward_test = net(val_X)
-    loss_test = crossentropy(X_forward_test, val_Y)
-    test_loss.append(loss_test.detach().numpy())
+    
+    X_forward_test = net(test_X)
+    loss_test = crossentropy(X_forward_test, test_Y)
+    val_loss.append(loss_test.detach().numpy())
 
-X_forward = net(val_X)
+
+X_forward = net(test_X)
 X_forward1 = X_forward.permute(0, 2, 3, 1)
-
 X_forward3 = X_forward1
 X_forward4 = X_forward3.detach().numpy()
 
 result = np.argmax(X_forward4, axis=-1)
 
 plt.plot(training_loss, label = 'training loss')
-plt.plot(test_loss, label='test loss')
+plt.plot(val_loss, label='test loss')
 plt.legend()
+plt.grid()
+plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_model_best.png', dpi = 200)
 plt.show()
 
-val_Y = val_Y.detach().numpy()
-print(dice_coefficient(val_Y, result))
-'''
+test_Y = test_Y.detach().numpy()
+print(dice_coefficient(test_Y, result))
+
 
 
 fig1, (ax1, ax2, ax3) = plt.subplots(1, 3)
@@ -223,11 +253,8 @@ ax3.imshow(test_Y[4,:,:])
 ax1.set_title('Input')
 ax2.set_title('Prediction')
 ax3.set_title('Label')
-#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_test4.png', dpi = 200)
+plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_test_best.png', dpi = 200)
 plt.show()
-
-
-
 
 index = np.zeros(len(test_Y))
 
@@ -244,6 +271,5 @@ ax3.imshow(test_Y[index.argmin(),:,:])
 ax1.set_title('Input')
 ax2.set_title('Prediction')
 ax3.set_title('Label')
-#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_worst.png', dpi = 200)
+plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_worse_best.png', dpi = 200)
 plt.show()
-'''
