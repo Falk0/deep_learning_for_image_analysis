@@ -58,10 +58,6 @@ class Net(nn.Module):
         return Z
 
 
-def crossentropy(G, Y):
-    return -(Y * G.log()).sum(dim = 1).mean()
-
-
 def accuracy(G, Y):
     return (G.argmax(dim=1) == Y.argmax(dim=1)).float().mean()
 
@@ -246,3 +242,53 @@ plt.ylabel("Actual")
 plt.show()
 
 # inspiration https://christianbernecker.medium.com/how-to-create-a-confusion-matrix-in-pytorch-38d06a7f04b7
+
+
+misclassified_indices = (Yhat_labels != test_Y_labels).nonzero().numpy()
+
+
+test_X = test_X.cpu()
+
+
+
+
+fig, axes = plt.subplots(1, 4)
+fig.set_figwidth(10)
+
+index = misclassified_indices[10]
+print(index)
+img = test_X[index].reshape(28, 28)  # Reshape the image to 28x28
+pred_label = Yhat_labels[index].item()
+true_label = test_Y_labels[index].item()
+axes[0].imshow(img, cmap='gray')
+axes[0].set_title(f"Pred: {pred_label}\nTrue: {true_label}")
+axes[0].axis('off')
+
+index = misclassified_indices[20]
+print(index)
+img = test_X[index].reshape(28, 28)  # Reshape the image to 28x28
+pred_label = Yhat_labels[index].item()
+true_label = test_Y_labels[index].item()
+axes[1].imshow(img, cmap='gray')
+axes[1].set_title(f"Pred: {pred_label}\nTrue: {true_label}")
+axes[1].axis('off')
+
+index = misclassified_indices[30]
+print(index)
+img = test_X[index].reshape(28, 28)  # Reshape the image to 28x28
+pred_label = Yhat_labels[index].item()
+true_label = test_Y_labels[index].item()
+axes[2].imshow(img, cmap='gray')
+axes[2].set_title(f"Pred: {pred_label}\nTrue: {true_label}")
+axes[2].axis('off')
+
+index = misclassified_indices[40]
+print(index)
+img = test_X[index].reshape(28, 28)  # Reshape the image to 28x28
+pred_label = Yhat_labels[index].item()
+true_label = test_Y_labels[index].item()
+axes[3].imshow(img, cmap='gray')
+axes[3].set_title(f"Pred: {pred_label}\nTrue: {true_label}")
+axes[3].axis('off')
+plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/convnet_missclassification.png', dpi = 200)
+plt.show()
