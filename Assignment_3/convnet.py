@@ -8,7 +8,7 @@ import load_mnist as lm
 import matplotlib.pyplot as plt
 import time
 
-
+#inspiration from UU SML course lab-exercise
 
 class Net(nn.Module):
     def __init__(self):
@@ -47,8 +47,6 @@ class Net(nn.Module):
         Z = Q4.mm(self.W5) + self.b5
         return Z
     
-def crossentropy(G, Y):
-    return -(Y * G.log()).sum(dim = 1).mean()
 
 def accuracy(G, Y):
     return (G.argmax(dim=1) == Y.argmax(dim=1)).float().mean()
