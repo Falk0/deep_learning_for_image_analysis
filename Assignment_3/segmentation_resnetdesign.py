@@ -53,30 +53,71 @@ class Net(nn.Module):
         U1 = 32
         U2 = 64
         U3 = 128
-
+        ###
         self.W1 = nn.Parameter(0.1 * torch.randn(U1, 2, 3, 3))
         self.b1 = nn.Parameter(torch.ones(U1)/10)     
         self.bn1 = nn.BatchNorm2d(U1)
+
+        self.W1a = nn.Parameter(0.1 * torch.randn(U1, U1, 3, 3))
+        self.b1a = nn.Parameter(torch.ones(U1)/10)     
+        self.bn1a = nn.BatchNorm2d(U1)
+
+        self.W1b = nn.Parameter(0.1 * torch.randn(U1, U1, 3, 3))
+        self.b1b = nn.Parameter(torch.ones(U1)/10)     
+        self.bn1b = nn.BatchNorm2d(U1)
         
+        ####
         self.W2 = nn.Parameter(0.1 * torch.randn(U2, U1, 3, 3))
         self.b2 = nn.Parameter(torch.ones(U2)/10)
         self.bn2 = nn.BatchNorm2d(U2)
 
+        self.W2a = nn.Parameter(0.1 * torch.randn(U2, U2, 3, 3))
+        self.b2a = nn.Parameter(torch.ones(U2)/10)
+        self.bn2a = nn.BatchNorm2d(U2)
+
+        self.W2b = nn.Parameter(0.1 * torch.randn(U2, U2, 3, 3))
+        self.b2b = nn.Parameter(torch.ones(U2)/10)
+        self.bn2b = nn.BatchNorm2d(U2)
+
+        ####
+
         self.W3 = nn.Parameter(0.1 * torch.randn(U3, U2, 3, 3))
         self.b3 = nn.Parameter(torch.ones(U3)/10)
         self.bn3 = nn.BatchNorm2d(U3)
-  
+
+        self.W3a = nn.Parameter(0.1 * torch.randn(U3, U3, 3, 3))
+        self.b3a = nn.Parameter(torch.ones(U3)/10)
+        self.bn3a = nn.BatchNorm2d(U3)
+
+        self.W3b = nn.Parameter(0.1 * torch.randn(U3, U3, 3, 3))
+        self.b3b = nn.Parameter(torch.ones(U3)/10)
+        self.bn3b = nn.BatchNorm2d(U3)
+
+        ####
+
         self.t1 = nn.ConvTranspose2d(U3, U2, 4, stride=2, padding=1)
 
-        self.W5 = nn.Parameter(0.1 * torch.randn(U2, U2*2, 3, 3))
+        self.W5 = nn.Parameter(0.1 * torch.randn(U2, U2, 3, 3))
         self.b5 = nn.Parameter(torch.ones(U2)/10)
         self.bn5 = nn.BatchNorm2d(U2)
 
+        self.W5a = nn.Parameter(0.1 * torch.randn(U2, U2, 3, 3))
+        self.b5a = nn.Parameter(torch.ones(U2)/10)
+        self.bn5a = nn.BatchNorm2d(U2)
+
+        self.W5b = nn.Parameter(0.1 * torch.randn(U2, U2, 3, 3))
+        self.b5b = nn.Parameter(torch.ones(U2)/10)
+        self.bn5b = nn.BatchNorm2d(U2)
+
         self.t2 = nn.ConvTranspose2d(U2, U1, 4, stride=2, padding=1)
 
-        self.W6 = nn.Parameter(0.1 * torch.randn(U1, U1*2, 3, 3))
+        self.W6 = nn.Parameter(0.1 * torch.randn(U1, U1, 3, 3))
         self.b6 = nn.Parameter(torch.ones(U1)/10)
         self.bn6 = nn.BatchNorm2d(U1)
+
+        self.W6a = nn.Parameter(0.1 * torch.randn(U1, U1, 3, 3))
+        self.b6a = nn.Parameter(torch.ones(U1)/10)
+        self.bn6a = nn.BatchNorm2d(U1)
 
         self.W4 = nn.Parameter(0.1 * torch.randn(2, 32, 1, 1))
         self.b4 = nn.Parameter(torch.ones(2)/10)
@@ -87,25 +128,38 @@ class Net(nn.Module):
 
         Q1 = (F.conv2d(X, self.W1, bias=self.b1,stride=1, padding=1)) #[85, 32, 128, 128]
         Q1_normalized = F.relu(self.bn1(Q1))   
-        M1 = F.max_pool2d(Q1_normalized, kernel_size=2, stride=2) #[85, 32, 64, 64]
+        Q1a = (F.conv2d(Q1_normalized, self.W1a, bias=self.b1a,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q1a_normalized = F.relu(self.bn1a(Q1a))
+        Q1b = (F.conv2d(Q1a_normalized + Q1_normalized, self.W1b, bias=self.b1b,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q1b_normalized = F.relu(self.bn1b(Q1b))
+        
+        M1 = F.max_pool2d(Q1b_normalized, kernel_size=2, stride=2) #[85, 32, 64, 64]
         
         Q2 = (F.conv2d(M1, self.W2, bias=self.b2,stride=1, padding=1)) #[85, 32, 64, 64] - > [85, 64, 64, 64]
         Q2_normalized = F.relu(self.bn2(Q2))
-        M2 = F.max_pool2d(Q2_normalized, kernel_size=2, stride=2) #[85, 64, 64, 64] -> [85, 64, 32, 32]
+        Q2a = (F.conv2d(Q2_normalized, self.W2a, bias=self.b2a,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q2a_normalized = F.relu(self.bn2a(Q2a))
+        Q2b = (F.conv2d(Q2a_normalized + Q2_normalized, self.W2b, bias=self.b2b,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q2b_normalized = F.relu(self.bn2b(Q2b))
+        
+        M2 = F.max_pool2d(Q2b_normalized, kernel_size=2, stride=2) #[85, 64, 64, 64] -> [85, 64, 32, 32]
 
         Q3 = (F.conv2d(M2, self.W3, bias=self.b3,stride=1, padding=1)) #[85, 64, 32, 32] -> [85, 128, 32, 32]
         Q3_normalized = F.relu(self.bn3(Q3))
+        Q3a = (F.conv2d(Q3_normalized, self.W3a, bias=self.b3a,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q3a_normalized = F.relu(self.bn3a(Q3a))
+        Q3b = (F.conv2d(Q3a_normalized + Q3_normalized, self.W3b, bias=self.b3b,stride=1, padding=1)) #[85, 32, 128, 128]
+        Q3b_normalized = F.relu(self.bn3b(Q3b))
 
-
-        T1 = self.t1(Q3_normalized, output_size=(X.shape[0], 64, 64, 64)) #[85, 128, 32, 32] -> [85, 64, 64, 64] 
+        T1 = self.t1(Q3b_normalized, output_size=(X.shape[0], 64, 64, 64)) #[85, 128, 32, 32] -> [85, 64, 64, 64] 
         T1_normalized = self.bn5(T1)
-        T1_cat = torch.cat([T1_normalized, Q2_normalized], dim=1) #[85, 64, 64, 64] + [85, 64, 64, 64]
-        Q4 = F.relu(F.conv2d(T1_cat, self.W5, bias=self.b5, stride=1, padding=1)) 
+        Q4 = F.relu(F.conv2d(T1_normalized, self.W5, bias=self.b5, stride=1, padding=1)) 
+
+
 
         T2 = self.t2(Q4, output_size=(X.shape[0], 32, 128, 128 )) # [85, 64, 64, 64] -> [85, 128, 32, 32]
         T2_normalized = self.bn6(T2)
-        T2_cat = torch.cat([T2_normalized, Q1_normalized], dim=1)
-        Q5 = F.relu(F.conv2d(T2_cat, self.W6, bias=self.b6, stride=1, padding=1))
+        Q5 = F.relu(F.conv2d(T2_normalized, self.W6, bias=self.b6, stride=1, padding=1))
 
         Z = F.conv2d(Q5, self.W4, bias=self.b4, stride=1, padding=0)
  
@@ -241,7 +295,7 @@ plt.plot(training_loss, label = 'training loss')
 plt.plot(val_loss, label='test loss')
 plt.legend()
 plt.grid()
-plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_unet2.png', dpi = 200)
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_unet2.png', dpi = 200)
 plt.show()
 
 test_Y = test_Y.detach().numpy()
@@ -258,7 +312,7 @@ ax3.imshow(test_Y[4,:,:])
 ax1.set_title('Input')
 ax2.set_title('Prediction')
 ax3.set_title('Label')
-plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_im5_unet2.png', dpi = 200)
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_im5_unet2.png', dpi = 200)
 plt.show()
 
 index = np.zeros(len(test_Y))
@@ -276,7 +330,7 @@ ax3.imshow(test_Y[10,:,:])
 ax1.set_title('Input')
 ax2.set_title('Prediction')
 ax3.set_title('Label')
-plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_im11_unet2.png', dpi = 200)
+#plt.savefig('/Users/falk/Documents/latex_documents/latex_master1_semester2/deep_learning_for_image_analysis/figures/assignment_3/segmentation_im11_unet2.png', dpi = 200)
 plt.show()
 
 #0.83
