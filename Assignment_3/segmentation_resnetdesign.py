@@ -119,6 +119,10 @@ class Net(nn.Module):
         self.b6a = nn.Parameter(torch.ones(U1)/10)
         self.bn6a = nn.BatchNorm2d(U1)
 
+        self.W6b = nn.Parameter(0.1 * torch.randn(U1, U1, 3, 3))
+        self.b6b = nn.Parameter(torch.ones(U1)/10)
+        self.bn6b = nn.BatchNorm2d(U1)
+
         self.W4 = nn.Parameter(0.1 * torch.randn(2, 32, 1, 1))
         self.b4 = nn.Parameter(torch.ones(2)/10)
 
@@ -153,15 +157,21 @@ class Net(nn.Module):
 
         T1 = self.t1(Q3b_normalized, output_size=(X.shape[0], 64, 64, 64)) #[85, 128, 32, 32] -> [85, 64, 64, 64] 
         T1_normalized = self.bn5(T1)
-        Q4 = F.relu(F.conv2d(T1_normalized, self.W5, bias=self.b5, stride=1, padding=1)) 
+        Q4 = F.relu(F.conv2d(T1_normalized, self.W5, bias=self.b5, stride=1, padding=1))
+        T1a_normalized = self.bn5a(Q4)
+        Q4a = F.relu(F.conv2d(T1a_normalized, self.W5a, bias=self.b5a, stride=1, padding=1)) 
+        T1b_normalized = self.bn5b(Q4a)
+        Q4b = F.relu(F.conv2d(T1b_normalized + T1_normalized, self.W5b, bias=self.b5b, stride=1, padding=1))  
 
-
-
-        T2 = self.t2(Q4, output_size=(X.shape[0], 32, 128, 128 )) # [85, 64, 64, 64] -> [85, 128, 32, 32]
+        T2 = self.t2(Q4b, output_size=(X.shape[0], 32, 128, 128 )) # [85, 64, 64, 64] -> [85, 128, 32, 32]
         T2_normalized = self.bn6(T2)
         Q5 = F.relu(F.conv2d(T2_normalized, self.W6, bias=self.b6, stride=1, padding=1))
+        T2a_normalized = self.bn6a(Q5)
+        Q5a = F.relu(F.conv2d(T2a_normalized, self.W6a, bias=self.b6a, stride=1, padding=1)) 
+        T2b_normalized = self.bn6b(Q5a)
+        Q5b = F.relu(F.conv2d(T2b_normalized + T2_normalized, self.W6b, bias=self.b6b, stride=1, padding=1))  
 
-        Z = F.conv2d(Q5, self.W4, bias=self.b4, stride=1, padding=0)
+        Z = F.conv2d(Q5b, self.W4, bias=self.b4, stride=1, padding=0)
  
         return Z
     
@@ -254,7 +264,7 @@ net = net.to(torch.float)
 # define the optimization algorithm
 learningrate = 0.003
 optimizer = optim.Adam(net.parameters(), lr=learningrate)
-epochs = 100
+epochs = 5
 
 training_loss = []
 val_loss = []
